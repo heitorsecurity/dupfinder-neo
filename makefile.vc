@@ -1,0 +1,195 @@
+#
+#   Duplicate Files Finder - search for duplicate files
+#   Copyright (C) 2007-2008 Matthias Boehm
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+
+!ifndef debug
+debug = 1
+!endif
+!ifndef unicode
+unicode =1
+!endif
+!ifndef shared
+shared = 0
+!endif
+
+# undocumented option to switch
+# on analysing (vc new enough only)
+!ifndef analyse
+analyse = 0
+!endif
+
+!ifndef wxdir
+wxdir = C:\wx
+!endif
+
+outdir = vc
+name = dupf
+namegui = $(name)gui
+namedll = $(name)dll
+
+version = 
+dbgversion = 
+libpath = vc
+
+!if $(unicode)==1
+version = $(version)u
+!endif
+
+!if $(debug)==1
+version = $(version)d
+dbgversion = d
+!else
+!endif
+
+!if $(shared)==1
+stversion = _shared
+!endif
+
+outdir = $(outdir)$(version)$(stversion)
+
+opt = -w -EHsc -Wp64  -Fp"$(outdir)\\" -Fo"$(outdir)\\" -Fd"$(outdir)\\" -GR  \
+	-I"$(wxdir)\include" -I"$(wxdir)\include\msvc" /D__WXMSW__ /DWIN32 -Yu"stdinc.h" \
+	-nologo
+
+!if $(analyse)==1
+opt = $(opt) -analyze
+!endif
+
+# Use treectrl
+!if 1 
+opt = $(opt) -DDUPF_USE_TREECTRL
+!endif
+
+
+!if $(debug)==1
+dbg = -Zi -D_DEBUG -DDEBUG -GS -RTCs -RTCu -RTCc -Od /D__WXDEBUG__ -MDd
+!else
+dbg = -Ox -DNDEBUG -MD
+!endif
+
+!if $(unicode)==1
+uniopt = -D_UNICODE -DUNICODE -DwxUSE_UNICODE=1 
+!else
+uniopt = 
+!endif
+
+!if $(shared)==1
+sharedopt = -DWXUSINGDLL
+libpath = $(libpath)_dll
+!else
+sharedopt = 
+libpath = $(libpath)_lib
+!endif
+
+opt = $(opt) $(dbg) $(uniopt) $(sharedopt)
+dllopt = $(opt) -DDUPF_BUILDING_DLL
+
+libs =  shlwapi.lib ole32.lib uuid.lib user32.lib advapi32.lib shell32.lib 
+libsgui = $(libs) gdi32.lib comctl32.lib comdlg32.lib oleaut32.lib rpcrt4.lib
+libdll = $(outdir)\$(namedll).lib
+headers = dbl.h largeint.h ulargeint.h os_cc_specific.h os_cc_specific_includes.h stdinc.h file.h resource.h \
+	dllexport.h dupf.h minmax.h wxverchk.h
+headersgui = $(headers) dupfgui.h dialog1.h dialog2.h dialog3.h dialog3_list.h dialog3_tree.h treectrl.h \
+		os_cc_specific_gui.h
+
+libpath_option = /link /LIBPATH:"$(wxdir)\lib\$(libpath)"
+
+all: $(outdir) $(outdir)\stdinc.obj \
+	$(outdir)\$(namedll).dll \
+	$(outdir)\$(name).exe \
+	$(outdir)\$(namegui).exe copy_dll
+
+$(outdir): 
+	-@if not exist $(outdir) mkdir $(outdir)
+
+$(outdir)\$(namedll).dll: $(outdir)\dbl.obj $(outdir)\os_cc_specific.obj $(outdir)\file.obj \
+	$(outdir)\dllmain.obj
+	cl $(opt) -LD$(dbgversion) -Fe"$@" $** $(libs) $(libpath_option)
+
+$(outdir)\$(name).exe: $(outdir)\dupf.obj $(outdir)\rsrc.res $(libdll)
+	cl $(opt) -Fe"$@" $** $(libs) $(libpath_option)
+
+$(outdir)\$(namegui).exe: $(outdir)\dupfgui.obj $(outdir)\dialog1.obj $(outdir)\dialog2.obj \
+	$(outdir)\dialog3.obj $(outdir)\treectrl.obj $(outdir)\os_cc_specific_gui.obj \
+	$(outdir)\rsrc.res $(libdll)
+	cl $(opt) -Fe"$@" $** $(libsgui) $(libpath_option)
+
+$(outdir)\dbl.obj: dbl.cpp $(headers)
+	cl $(dllopt) -c dbl.cpp
+
+$(outdir)\dupf.obj: dupf.cpp $(headers)
+	cl $(opt) -c dupf.cpp
+
+$(outdir)\os_cc_specific.obj: os_cc_specific.cpp $(headers)
+	cl $(dllopt) -c os_cc_specific.cpp
+
+$(outdir)\os_cc_specific_gui.obj: os_cc_specific_gui.cpp $(headers)
+	cl $(opt) -c os_cc_specific_gui.cpp
+
+$(outdir)\file.obj: file.cpp $(headers)
+	cl $(dllopt) -c file.cpp
+
+$(outdir)\stdinc.obj: stdinc.cpp stdinc.h os_cc_specific_includes.h
+	cl $(opt)  -c -Yc"stdinc.h" stdinc.cpp
+
+$(outdir)\dupfgui.obj: dupfgui.cpp $(headersgui) dbl.cpp
+	cl $(opt) -c dupfgui.cpp
+
+$(outdir)\dialog1.obj: dialog1.cpp $(headersgui)
+	cl $(opt) -c dialog1.cpp
+
+$(outdir)\dialog2.obj: dialog2.cpp $(headersgui)
+	cl $(opt) -c dialog2.cpp
+
+$(outdir)\dialog3.obj: dialog3.cpp dialog3_list.cpp dialog3_tree.cpp $(headersgui)
+	cl $(opt) -c dialog3.cpp
+
+$(outdir)\treectrl.obj: treectrl.cpp $(headersgui)
+	cl $(opt) -c treectrl.cpp
+
+$(outdir)\rsrc.res: rsrc.rc resource.h
+	rc -i"$(wxdir)\include" -fo "$@" rsrc.rc 
+
+$(outdir)\dllmain.obj: dllmain.cpp
+	cl $(dllopt) -c dllmain.cpp
+
+run:
+	-$(outdir)\$(name).exe
+
+
+dll1 = wxbase28$(version)_vc_custom.dll
+dll2 = wxmsw28$(version)_core_vc_custom.dll
+dll3 = wxmsw28$(version)_adv_vc_custom.dll
+dll1m = $(dll1).manifest
+dll2m = $(dll2).manifest
+dll3m = $(dll3).manifest
+
+copy_dll: 
+!if $(shared)==1
+	@if not exist $(outdir)\$(dll1) xcopy /Y "$(wxdir)\lib\$(libpath)\$(dll1)" $(outdir)
+	@if not exist $(outdir)\$(dll2) xcopy /Y "$(wxdir)\lib\$(libpath)\$(dll2)" $(outdir)
+	@if not exist $(outdir)\$(dll3) xcopy /Y "$(wxdir)\lib\$(libpath)\$(dll3)" $(outdir)
+	@if not exist $(outdir)\$(dll1m) xcopy /Y "$(wxdir)\lib\$(libpath)\$(dll1m)" $(outdir)
+	@if not exist $(outdir)\$(dll2m) xcopy /Y "$(wxdir)\lib\$(libpath)\$(dll2m)" $(outdir)
+	@if not exist $(outdir)\$(dll3m) xcopy /Y "$(wxdir)\lib\$(libpath)\$(dll3m)" $(outdir)
+
+!endif
+
+
+

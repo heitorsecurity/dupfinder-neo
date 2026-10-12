@@ -1,0 +1,21 @@
+[package]
+name = "dupfinder-neo-rust"
+version = "0.9.0"
+edition = "2021"
+authors = ["DupFinder Neo Project"]
+description = "Fast, accurate duplicate file finder and empty directory cleaner"
+
+[dependencies]
+# Dependencias padrao opcionais (a engine de referencia funciona com pure std)
+# sha2 = "0.10"
+# walkdir = "2.4"
+# rayon = "1.8"
+
+[[bin]]
+name = "dupfinder-rust"
+path = "main.rs"
+
+[lib]
+name = "dupfinder_engine"
+path = "dupfinder_engine.rs"
+

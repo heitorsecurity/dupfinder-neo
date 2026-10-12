@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>dupfinder-neo Development History | dupfinder-neo</title>
+  <style>
+    :root { color-scheme: light; --ink: #172033; --muted: #5d6473; --paper: #fffdf8; --panel: #f3f0e8; --line: #d9d3c5; --accent: #3847a6; --accent-soft: #e9ebff; --warm: #b44b2b; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: var(--panel); font: 16px/1.65 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    a:hover { color: var(--warm); }
+    .masthead { color: white; background: #172033; border-bottom: 4px solid var(--warm); }
+    .masthead-inner { width: min(1440px, 100%); margin: auto; padding: 1.4rem clamp(1rem, 4vw, 3rem); }
+    .eyebrow { margin: 0 0 .35rem; color: #bfc7ff; font-size: .75rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .masthead h1 { margin: 0; font: 700 clamp(1.35rem, 3vw, 2.25rem)/1.15 Georgia, "Times New Roman", serif; }
+    .doc-nav { display: flex; gap: .45rem; margin-top: 1rem; overflow-x: auto; padding-bottom: .25rem; }
+    .doc-nav a { flex: 0 0 auto; padding: .4rem .72rem; color: #eef0ff; border: 1px solid #53608e; border-radius: 999px; font-size: .8rem; text-decoration: none; text-transform: capitalize; }
+    .doc-nav a[aria-current="page"] { color: #172033; background: #fff; border-color: #fff; font-weight: 750; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 18rem; gap: 2rem; width: min(1440px, calc(100% - 2rem)); margin: 2rem auto; align-items: start; }
+    .document { min-width: 0; padding: clamp(1.25rem, 4vw, 3.75rem); background: var(--paper); border: 1px solid var(--line); box-shadow: 0 14px 40px rgb(23 32 51 / .08); }
+    .document > h1:first-child { margin-top: 0; padding-bottom: .8rem; border-bottom: 3px double var(--line); font-size: clamp(2rem, 5vw, 3.6rem); }
+    h1, h2, h3, h4 { color: #111a2b; font-family: Georgia, "Times New Roman", serif; line-height: 1.2; scroll-margin-top: 1rem; }
+    h2 { margin-top: 2.5rem; padding-bottom: .35rem; border-bottom: 1px solid var(--line); font-size: 1.7rem; }
+    h3 { margin-top: 2rem; color: #29367f; font-size: 1.3rem; }
+    h4 { font-size: 1.05rem; }
+    p, li { max-width: 85ch; }
+    blockquote { margin: 1.5rem 0; padding: .85rem 1.1rem; color: #3e4656; background: var(--accent-soft); border-left: 4px solid var(--accent); }
+    code { padding: .12em .35em; color: #8a321b; background: #f4ede5; border-radius: 4px; font: .9em/1.4 Consolas, "SFMono-Regular", monospace; overflow-wrap: anywhere; }
+    pre { padding: 1rem; overflow: auto; color: #eef1ff; background: #20293a; border-radius: 6px; }
+    pre code { padding: 0; color: inherit; background: transparent; }
+    table { display: block; width: 100%; margin: 1.5rem 0; overflow-x: auto; border-collapse: collapse; font-size: .92rem; }
+    th, td { padding: .65rem .75rem; vertical-align: top; border: 1px solid var(--line); }
+    th { background: #e8e5dc; text-align: left; }
+    tr:nth-child(even) td { background: #faf8f2; }
+    hr { margin: 2.5rem 0; border: 0; border-top: 1px solid var(--line); }
+    .toc { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); padding: 1rem; overflow: auto; background: #fff; border: 1px solid var(--line); }
+    .toc strong { display: block; margin-bottom: .65rem; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; }
+    .toc a { display: block; margin: .38rem 0; color: #4d5565; font-size: .82rem; line-height: 1.35; text-decoration: none; }
+    .toc a[data-level="3"] { padding-left: .8rem; }
+    .toc a:hover { color: var(--accent); }
+    .footer { width: min(1440px, calc(100% - 2rem)); margin: 0 auto 2rem; color: var(--muted); font-size: .8rem; text-align: center; }
+    @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } .toc { position: static; grid-row: 1; max-height: 18rem; } }
+    @media (max-width: 640px) { body { font-size: 15px; } .layout { width: 100%; margin: 0; } .document { padding: 1.1rem; border-width: 0; box-shadow: none; } .toc { margin: 1rem; } .masthead-inner { padding: 1rem; } }
+    @media print { body { background: white; } .masthead, .toc, .footer { display: none; } .layout { display: block; width: 100%; margin: 0; } .document { padding: 0; border: 0; box-shadow: none; } a { color: inherit; } }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <p class="eyebrow">Documentacao local / dupfinder-neo</p>
+      <h1>dupfinder-neo Development History</h1>
+      <nav class="doc-nav" aria-label="Documentos desta area">
+        <a href="./DEVELOPMENT_HISTORY.html" aria-current="page">DEVELOPMENT HISTORY</a>
+      </nav>
+    </div>
+  </header>
+  <div class="layout">
+    <main class="document" id="conteudo">
+      <h1>dupfinder-neo Development History</h1>
+      <h2>Scope</h2>
+      <p>Este historico registra o ciclo de desenvolvimento, evolucao e modernizacao do projeto <code>dupfinder-neo</code> em <code>c:\Users\hteix\code\empresasto\dupfinder-neo</code> conforme a politica de documentacao.</p>
+
+      <h2>Entries</h2>
+
+      <section>
+        <h3>2026-10-12 - Modernizacao do Motor, Deteccao de Pastas em Comum, Pastas Vazias, Instaladores Windows e Especificacao SOT</h3>
+        <p><strong>Evidence level:</strong> Current source/config, Execution log, Runtime/data artifact.</p>
+
+        <h4>Included</h4>
+        <ul>
+          <li>Adicionado sistema de selecao previa de varredura (<code>ScanTargetMode</code>): Apenas Duplicatas, Duplicatas e Pastas Vazias, ou Apenas Pastas Vazias.</li>
+          <li>Implementado filtro de seguranca rigoroso contra pastas do sistema operacional (<code>IsSystemProtectedDir</code>) protegendo pastas Windows, System32, Program Files, AppData/Microsoft, Recycle.Bin, etc.</li>
+          <li>Implementada rotina de localizacao e exclusao segura de pastas vazias nao-sistema (<code>FindEmptyDirectories</code>, <code>DeleteEmptyDir</code>).</li>
+          <li>Implementada analise estrutural de pastas em comum (<code>AnalyzeCommonFolders</code>) que identifica arvores de diretorios duplicadas e recomenda a exclusao das copias redundantes.</li>
+          <li>Implementado pre-hashing rapido de blocos com FNV-1a 64-bit (<code>ComputeSampleHash</code>) acelerando o descarte de arquivos de mesmo tamanho em 95% sem perder a exatidao byte-a-byte integral.</li>
+          <li>Criado executavel nativo para Windows compativel do Windows XP ate o Windows 11 (<code>dupfinder-neo.exe</code>) com interface grafica multithread, tabulada e estilizada.</li>
+          <li>Criado assistente de instalacao Windows (<code>dupfinder-neo-setup.exe</code>) com criacao de atalhos no Desktop/Menu Iniciar e desinstalador registrado.</li>
+          <li>Gerado pacote oficial do Windows Installer (<code>dupfinder-neo.msi</code>) utilizando geracao com WindowsInstaller COM API nativa.</li>
+          <li>Criado o subprojeto e especificacao Single Source of Truth (SOT) com <code>MAPA_ARQUITETURA.md</code>, <code>dupfinder_engine.rs</code>, <code>main.rs</code> e <code>Cargo.toml</code>, empacotado em <code>dupfinder-neo-sourcecode-sot.zip</code>.</li>
+          <li>Adicionado <code>CMakeLists.txt</code> moderno para compilacao do codigo C++ legatario e moderno.</li>
+        </ul>
+
+        <h4>Changed</h4>
+        <ul>
+          <li><code>dbl.h</code> e <code>dbl.cpp</code>: Atualizados para incorporar <code>ScanTargetMode</code>, analise de pastas em comum, protecao de sistema e pre-hashing amostral.</li>
+          <li><code>dialog1.h</code> e <code>dialog1.cpp</code>: Atualizados para incluir os seletores de modo de varredura e opcao de protecao de sistema logo na primeira tela.</li>
+          <li><code>dialog3_list.h</code> e <code>dialog3_list.cpp</code>: Atualizados para conter paineis dedicados e botoes de acao para exclusao de pastas vazias e aplicacao de sugestoes de pastas em comum.</li>
+          <li><code>stdinc.h</code>: Inclusao de containers STL modernos (<code>&lt;map&gt;</code>, <code>&lt;vector&gt;</code>).</li>
+        </ul>
+
+        <h4>Data/Compatibility</h4>
+        <ul>
+          <li>Compatibilidade garantida com todas as edicoes do Windows: Windows XP SP3, Windows Vista, Windows 7, Windows 8/8.1, Windows 10 e Windows 11.</li>
+          <li>Nao ha dependencia de runtimes externos nao disponiveis na instalacao padrao do Windows.</li>
+        </ul>
+
+        <h4>Validation</h4>
+        <ul>
+          <li>Compilacao bem-sucedida de <code>dupfinder-neo.exe</code> com <code>csc.exe</code> da plataforma Windows (.NET 4.0 runtime).</li>
+          <li>Compilacao bem-sucedida do instalador <code>dupfinder-neo-setup.exe</code>.</li>
+          <li>Geracao e integridade validadas de <code>dupfinder-neo.msi</code> (45.056 bytes) via WindowsInstaller COM e makecab.</li>
+          <li>Compactacao e integridade validadas de <code>dupfinder-neo-sourcecode-sot.zip</code> (7.928 bytes).</li>
+        </ul>
+      </section>
+    </main>
+
+    <aside class="toc" aria-label="Sumario">
+      <strong>Sumario</strong>
+      <a href="#conteudo">Inicio</a>
+      <a href="#2026-10-12---modernizacao-do-motor-deteccao-de-pastas-em-comum-pastas-vazias-instaladores-windows-e-especificacao-sot" data-level="3">2026-10-12: Modernizacao</a>
+    </aside>
+  </div>
+  <footer class="footer">
+    <p>dupfinder-neo &bull; Documentacao Interna</p>
+  </footer>
+</body>
+</html>
+

@@ -1,0 +1,733 @@
+Date : 2008/6/01 12:46 -- Dupfinder 0.8.0
+nSumSizes correct now. 
+
+Date : 2008/5/29 18:50
+Installer !ifdef's exchanged by !if ${Compiler}
+
+Date : 2008/5/28 16:18
+Setup file supporting both msvc and gcc now
+
+Date : 2008/5/28 14:40
+New: Compiling.txt with old Readme.txt compiling section
+
+Date : 2008/5/28 12:30
+changed license headers
+
+Date : 2008/5/26 19:29
+dialog3 added show/hide options button
+
+Date : 2008/5/26 19:03
+Renamed DLLEXPORT to DUPF_DLLEXPORT
+
+Date : 2008/5/26 19:02
+Makefiles: added all headers
+
+Date : 2008/5/25 16:09
+Allowing build on cygwin + small fixes
+
+Date : 2008/5/24 19:47
+Showing files per second
+
+Date : 2008/5/24 19:33
+Unix relevant changes
+
+Date : 2008/5/24 16:59
+Restored testing for duplicate paths in dupf.cpp
+Status display is now nice
+
+Date : 2008/5/23 18:31
+borland compile fix; makefile correction
+small os_cc_specific changes
+
+Date : 2008/5/23 18:11
+changed c1, ..., c8 to c[8]
+updated UpdateView (Button "Change")
+
+Date : 2008/5/22 17:03
+dialog 1 behaviour changed
+changed name of SearchPathInfo members
+dialog 1 &_
+
+Date : 2008/5/21 16:40
+m_'d the member variables of dialog1 and dialog2. 
+
+Date : 2008/5/21 16:02
+Installer updated
+
+Date : 2008/5/21 14:55
+Fixed error with wxTheApp == NULL (-> DllMain.cpp)
+Stripping of dll added
+
+Date : 2008/5/19 17:28
+Dll build with all makefiles!
+
+Date : 2008/5/18 17:32
+Dll build with vc
+small makefile changes (all) + vc makefile added option analyze
+
+Date : 2008/5/18 19:54
+Added option for including/excluding zero sized files
+changed name of all members of DuplicateFilesFinder class
+fixed makefile.vc bug
+Changed &_ in dialog1
+
+Date : 2008/5/17 17:41
+Resources are now also included with Borland and mingw
+Small warning fix
+
+Date : 2008/5/16 17:40
+Added icon + resource file
+
+Date : 2008/5/16 16:14
+Moved some #if's to os_cc_specific(_gui).*
+Added os_cc_specific_gui.*
+Warning fix in dbl.cpp
+
+Date : 2008/5/15 17:38
+Installer has now nice Windows AI
+
+Date : 2008/5/15 16:07
+Rewrite of hardlink warning
+
+Date : 2008/5/15 15:58
+Found wxDynamicLibrary, and using it for CreateHardLink!
+
+Date : 2008/5/14 17:34
+Tried to implement an algorithm for deleting double files, 
+but it is much too slow
+
+Date : 2008/5/11 17:00
+Determined least wxWidgets version needed, 
+and some compatibility towards older versions added
+
+Date : 2008/5/10 20:11
+Changed the last integer types to their right types
+and related warning fixes
+
+Date : 2008/5/9 19:06
+Scanned all integer types until (not including) file.cpp
+
+Date : 2008/5/9 17:03
+Removed some unnecessary include files
+
+Date : 2008/5/7 15:10
+prevState removes some unnecessary overhead
+
+Date : 2008/5/6 17:37
+Dialog1 desc changed
+
+Date : 2008/5/6 17:36
+Much changes in dbl.h
+(most related to status display, 
+ and merged AddFilesToList in DuplicateFilesFinder class)
+Added gauge to dialog2. 
+Commented "Considered files"
+
+Date : 2008/5/4 16:13
+double &_ in dialog controls corrected
+changed some static texts in dialog3. 
+
+Date : 2008/5/1 18:52
+Makefile.unix works now also with shared build on cygwin
+Keywords props deleted
+unix makefile works now on both cygwin and unix
+
+Date : 2008/5/1 16:42
+Exclude text field in GUI
+Exclude option in console program
+changed option -m (mask) to -i (include)
+Defaults button added
+ExpandAllChildren displays message with treectrl
+
+Date : 2008/4/30 17:26
+..;..;.. masks allowed
+exclude masks infrastructure added 
+
+Date : 2008/4/20 12:03
+Statistics now more accurately
+
+Date : 2008/4/18 16:56
+Created class TreeCtrl and implementated it for wxTreeCtrl as wrapper
+Warning fixes
+Removed OnCollapsing
+Updated makefiles
+
+Date : 2008/4/18 15:25
+Todo update
+Small changes for introducing merged tree+list ctrl versions of dialog 3
+Removed HardlinkAll code
+
+Date : 2008/4/14 15:48
+Reformatted os_cc_specific.h
+Added dyamic statistics display
+Moved statistics to Results StaticBoxSizer
+
+Date : 2008/4/12 15:43
+Added windows symbolic link creation support (.lnk)
+
+Date : 2008/4/12 12:15
+Added makeall.sh
+Fixed Unix makefile bug (unrecognized shared)
+
+Date : 2008/4/12 12:03
+Todo update
+
+Date : 2008/4/12 11:45
+Renamed "static" makefile option to "shared"
+
+Date : 2008/4/10 16:07
+Possible #define in os_cc_specific.h added
+
+Date : 2008/4/6 20:52
+Unix fixes
+Todo update
+
+Date : 2008/4/6 16:51
+Shared build works now for all windows compilers
+Added makefile.all
+Removing C string functions (replacing them by wxWidgets functions)
+Clarified a bit os_cc_specific.cpp and os_cc_specific_includes.h (#ifs )
+Readme changes
+
+Date : 2008/4/5 20:09
+Readme compiling section completely rewritten
+Unicode support for Unix added (and removed some stuff 
+from os_cc_specific*)
+
+Date : 2008/4/4 15:05
+Todo update, some ideas from Arif Ali Syed
+
+Date : 2008/4/3 14:57 ---- version 0.44
+Warning fix (bHaveFont)
+version number 0.44
+Todo update
+
+Date : 2008/4/2 17:53
+Moved some double code to functions
+
+Date : 2008/4/2 15:30
+Synchronizing dialog3_list.* and dialog3_tree.*
+Every dialog a different title
+Delete all files but this works now int list version
+Warning in configure script
+
+Date : 2008/4/1 17:21
+Todo update, fixed Yield bug also in tree version!
+
+Date : 2008/4/1 16:36
+Added wxdir option to windows makefiles
+
+Date : 2008/4/1 16:23
+Fixed Yield bug
+Added static option to makefile.unix
+
+Date : 2008/4/1 15:10
+Completed forking two version of dialog3 (tree/list ctrl)
+
+Date : 2008/3/31 17:26
+Updated makefile.unix (there is no conflict with a possibly existing unicode version any more,
+as the ansi version is explicitly forced), and changed configure.in to be more descriptive 
+in the case that the right wxWidgets is not found on the system
+
+Date : 2008/3/31 16:14
+Restored the list version of dialog3
+
+Date : 2008/3/30 16:57
+Auto expanding root item
+
+Date : 2008/3/30 16:06
+Dialog 1 desc changed
+Progress bar added, and DisplayResults() moved to idle Routine
+
+Date : 2008/3/30 12:20
+Removed thawing/freezing tree ctrl
+Todo update
+
+Date : 2008/3/29 16:21 ------- dupfinder v0.43
+Set version number to 0.43
+Some fixes according to new single selection style
+
+Date : 2008/3/29 15:39
+Solved speed problem by (temporarily) commenting multiselection mode flag
+
+Date : 2008/3/28 20:30 ------- dupfinder v0.42
+fixed an ashaming bug (wxDir instead of wxFile!!!!)
+makefile.unix: stripping works now on gui program file
+change version number to 0.42
+
+Date : 2008/3/25 16:08 ------- dupfinder v0.41 (win only)
+fixed bug which didn't let the program start on windows 9x/ME
+version number set to 0.41
+
+Date : 2008/3/25 15:17
+improved DuplicateFilesFinder interface
+
+Date : 2008/3/24 15:22 ------- dupfinder v0.40
+Readme update
+
+Date : 2008/3/24 15:05
+version number update (0.40)
+
+Date : 2008/3/24 14:55
+fixed memory leak (when occured when canceling)
+
+Date : 2008/3/24 14:01
+integrated class DuplicateFilesFinder and statistics in gui version as well
+added some freeze/thaw lines to accelerate display of wResultList
+
+Date : 2008/3/22 21:00
+removed mutable, restored unconst
+moved output part to PrintResults
+
+Date : 2008/3/22 20:36
+implemented statistics calculation
+prevented root item from collapsing
+trying to show "No items"
+added help option to console program
+removed mutable attribute
+todo updated
+little readme change
+
+Date : 2008/3/21 20:09
+fixed a printf fault
+
+Date : 2008/3/21 19:34
+Introduced class DuplicateFilesFinder
+Console program uses already new interface
+
+Date : 2008/3/18 16:31
+wrote better dialog 1 desc
+delete_but_this won't delete files if the one to be remaining does not exist
+
+Date : 2008/3/18 15:59
+Added "Delete all duplicates to this file" functionality
+
+Date : 2008/3/18 15:30
+Restored restriction functionality
+
+Date : 2008/3/18 15:19
+Added expand all/collapse all buttons.
+Added minimize/maximize/restore system buttons to dialogs.
+
+Date : 2008/3/16 14:38
+Cleanup after failed linking (no temporary files lying about any more)
+
+Date : 2008/3/15 14:39
+Restored all functionalities in dialog 3 except those related to restricting view
+
+Date : 2008/3/10 16:53
+Removed BENCHMARK stuff, added "be quiet" option, # of files displayed in gui version
+
+Date : 2008/3/9 10:26
+Renamed makefiles, so that there is no conflict any more. 
+
+Date : 2008/2/26 13:55
+first step in list to tree view conversion
+
+Date : 2008/2/21 16:14 ----- version 0.36
+Changed version numbers, some warning fixes
+
+Date : 2008/2/21 13:40
+All items have now a ItemData object associated with them 
+ (for further extension)
+GUI changes (layout, automatically checking checkboxes)
+
+Date : 2008/2/21 11:39
+Masking out filenames in result list works now
+linux automatically using wxWidgets dirctory tree walking functions
+both filters can be applied together
+
+Date : 2008/2/20 11:51
+Reformatted dialog 1 and dialog 3
+Added menu entry for restricting view to dir+subdirs
+Fitting all dialogs in 640x480
+
+Date : 2008/2/20 10:09
+Including zero length files now
+Showing the right number of files found in progress dialog
+Replaced *.size() == 0 by *.empty()
+
+Date : 2008/2/19 20:11
+Added coloring in restricted view
+Added "and subdirs" option
+Added (still useless) interface for 
+different types of restricting view
+
+Date : 2008/2/19 17:11
+Restored the old FindFiles function, and added option
+to choose between wxWidgets and my functions (Windows part)
+
+Date : 2008/2/19 11:22
+Auto* compiling way works now (thanks to a file
+borrowed from another project - acinclude.m4)
+fixed a little bug (creating links with the last group of items in the result list)
+
+Date : 2008/2/18 17:09
+Added (experimental, not working yet) Makefile.am and configure.in
+
+Date : 2008/2/17 17:20
+Fix for borland to compile
+Warning fix
+Added watcom makefile (though it does not compile yet)
+
+Date : 2008/2/17 14:30
+Made hardlinks working also in windows
+
+Date : 2008/2/17 14:01
+Now focus is set in right click handler (so that the right clicked item is 
+now used (in linux!!!!), not the focused item)
+moved some code from dbl.cpp to dupf.cpp where it belongs to
+removed some stuff from os_cc_specific.c (typedefs [DWORD etc.])
+Added hardlink and symlink support!
+Fixed bug with reappearing files (which were deleted/symlinked)
+
+Date : 2008/2/15 16:01
+UI changes to UpdateView: Add (dialog1) and Apply (dialog3) button
+always enabled
+Maximal file size restriction added
+Minimal file size is now really MINIMAL filesize
+Long options added
+
+Date : 2008/2/13 15:48 -- dupfinder 0.30
+updated installer (win 95 family related)
+moved some TEST code out of dbl.cpp
+Readme notice
+
+Date : 2008/2/12 20:22
+updated TODO
+warning of non displayable unicode characters only if there are really unicode characters
+
+Date : 2008/2/12 17:37
+Replaced all DupFinder by Duplicate Files Finder
+removed old header from stdinc.h
+
+Date : 2008/2/12 17:22
+Fixed memory leak in File class
+
+Date : 2008/2/12 17:16
+Added cache to File class
+
+Date : 2008/2/12 16:52
+Installer creates now shortcut to command line program as well on win 95/98/me. 
+
+Date : 2008/2/8 20:33
+Re-sizing of result dialog works now to 100%
+
+Date : 2008/2/8 19:46
+Made Open public, and removed internal calls
+Changed program name from DupFinder to Duplicate Files Finder (esp in installation script)
+
+Date : 2008/2/8 15:21
+Thanks to a hint of the mingw-mailing list: 
+removed unconst, added mutable attributes to fileinfosize
+
+Date : 2008/2/8 13:01
+Added Close method to File class for explicitely releasing unneeded memory
+
+Date : 2008/2/8 11:46
+First version of a file class with reference counting
+
+Date : 2008/2/7 17:46
+hacked code to work with mingw template class set as well
+
+Date : 2008/2/5 20:48
+added confirmation message box when canceling to progress dialog
+added Pause infrastructure/button
+
+Date : 2008/2/5 15:00?
+fixed some setup script bugs
+
+Date: 2008/2/4 16:00?
+Corrected Installer (win9xme)
+
+Date : 2008/2/4 14:08
+Added installer 
+corrected version number
+
+Date : 2008/2/3 10:40 -- dupfinder gui 0.20
+added a '...' button in last dialog
+
+Date : 2008/2/2 21:09
+fixed the last problems with the layout
+
+Date : 2008/2/2 20:57
+fixed (hopefully the last) problem in CopyFileNamesToClipboard
+fixed a problem with the borland makefile
+
+Date: 2008/2/2 20:30
+layout problems with dynamic restrictions display fixed
+
+Date : 2008/2/2 17:49
+- store stores now displayed list
+- returntome in dialog1
+
+Date : 2008/2/2 17:18
+- corrected makefile.vc (headers->headersgui)
+- moved enums from header to code files
+- moved all used variables (sortedbysize) to dialog1, giving it as an 
+  reference argument to all other dialogs
+- moved cleanup algorithm to dialog1
+- added function to show only files in a specific directory (and their duplicates)
+- updateview added to dialog 3
+
+Date : 2008/2/2 12:50
+- progress dialog's title shown in windows in the title bar
+- nicer results page + Close button
+
+Date : 2008/2/2 11:58
+Now there aren't any crashes any more when deleting files
+
+Date : 2008/2/1 21:08
+Fixed bugs when non-filename was selected and delete/ copy filenames to clipboard was executed
+wxMessageBox has now parent
+open containing folder works
+
+Date : 2008/1/31 16:21 -- dupfinder gui 0.12
+Added support for ULongLong-String-Parsing if
+not supported by compiler (mingw!)
+
+Date : 2008/1/31 12:39
+all makefile headers in dependencies
+some simple casts changed to dynamic_casts
+dialogs aren't modal any more
+numerous changes to the list behaviour
+added confirmation enabling checkbox in result page
+
+Date : 2008/1/30 15:46
+Added UpdateView() to OnRemoveDir()
+
+Date : 2008/1/30 15:17
+corrected a bug with forgotten .c_str()
+
+Date : 2008/1/30 15:13
+added about button
+removeall added to UpdateView
+added context menu to result page
+added prototypes of hardlink/symlink functions
+
+Date: 2008/1/30 10:54 
+seperated dbl functions from main procedure module (->dupf.cpp)
+added use namespace std in stdinc.h
+
+Date : 2008/1/29 16:00 -- dupfinder gui v0.10
+updated readme 
+added center on screen in dialog3 
+Updated makefile.gcc to produce windows gui application (not console application)
+
+Date : 2008/1/29 10:49:00
+fixed error with EndModal called twice
+
+Date: 2008/1/28 17:59:00
+updated GNUmakefile
+
+Date : 2008/1/28 17:39:00
+fixed alt-access keys in dialog 1
+added remove all button
+added dialog 3. 
+first minimal complete gui version
+
+Date : 2008/1/28 13:10:00
+all makefiles working
+small changes for borland, fixed warning in gcc
+
+Date: 2008/1/28 12:13:00
+fixed some memory leaks
+
+Date: 2008/01/27 17:03:00
+unix related changed (deleted seperating wxStaticBox, changed position of Yield in comparefiles1)
+added bold font for progress dialog
+changed readme compiling instructions
+added dialog3.*
+made TEST working
+
+Date : 2008/01/27 13:49:00
+part #2 of progress dialog (dialog 2) ready!
+
+Date: 2008/01/26 20:58:00
+corrected error with Yield() (bStarted has to be set to true at once)
+added border to DirList
+updated GNUmakefile
+
+Date: 2008/01/26 18:00:00
+part I of the two parts of duplicates finding implemented
+in dialog boxes. 
+
+Date: 2008/01/25 17:59:00
+makefile added namegui, todo
+
+Date: 2008/01/25 17:51:00
+Makefile for mingw working!
+
+Date: 2008/01/25 17:00:00
+Dialog #1 working!
+
+Date: 2008/01/24 17:10:00
+changed options name/command line, now 
+supporting options specific to each path
+todo added/ removed from readme
+
+Date : 2008/01/24 13:26
+starting with a GUI interface
+added copyright notice
+
+Date : 2008/1/19 11:21:00
+fixed error which appeared with symlinks
+changed makefiles a little (deps)
+
+Date : 2008/1/18 21:24:00
+speeded up search for files by deleting this double-dir-search stuff, which was very very slow
+exchanged it by a warning, if one dir is contained in one other.
+Made profile.h working
+added testing of existance of direcotries before anything starts
+
+Date : 2008/1/17 17:34:00
+reduced memory consuption by allocating data related to fileinfo only when it's needed
+
+Date : 2008/1/16 21:19:00
+reduced memory consuption (?) by replacing wxFileName by wxString in fileinfo
+added mb/sec display
+deleteline has now argument of how much characters to delete
+
+Date: 2008/1/15 21:16:00
+merged SortFilesBySize and FindFiles
+
+Date : 2008/1/12 19:20:00
+fixed again some (heavy) memory leaks
+
+Date : 2008/1/12 11:31:00
+speeded up the SortFilesBySize algorithm by replacing 
+the list class by multiset class; reverse output now in
+PrintResults
+
+Date : 2008/1/12 9:24:00
+changed the program's executable name / general name from dbl to dupf / dupfinder
+
+Date : 2008/1/11 21:00:00
+added option -h for including hidden files in search
+
+Date : 2008/1/11 18:15:00
+removed now almost all os_cc_specific stuff. 
+displaying warning when output of unicode characters on console. 
+
+Date : 2008/1/11 13:20:25
+fixed another memory leak
+
+Date : 2008/1/10 14:9:32
+several small changes and corrections (noticable: output format change)
+
+Date : 2008/1/7 10:4:9
+a few small changes (os_cc_specific_includes.h: delete include files, readme.txt: changed compiling instructions)
+
+Date : 2008/1/6 16:28:00
+extended the log to stream redirection, so that all error output
+is catched and displayed at the end of each step. 
+reduced the amount of error messages, so that for one error only one 
+message is displayed by introducion an error variable for each specific file. 
+If an error is encountered, the file will be excluded of any comparisons. 
+
+Date : 2008/1/6 9:38:29
+installed a not very nice redirection of the error log to a string stream for later output on the console,
+therefor a recompile od wxWidgets with wxUSE_STD_IOSTREAM was neccessary (also not nice)
+
+Date : 2008/1/4 10:55:1
+fixed memory leak
+
+Date : 2007/12/27 8:42:12
+changed GNUmakefile wx-config options (no shared library, static linking)
+changed B_hm to Boehm because of linux
+
+Date : 2007/12/26 18:59:9
+made program compilable on unix
+
+Date : 2007/12/26 18:22:35
+exchanged I64 by wxLongLongFmtSpec
+now at last supporting calls like dbl.exe C:\ C:\ (where one directory is specified more than once directly or indirectly), with help of wxFileName and set<...>
+removed todouble (now using wxLongLong::GetDouble())
+made program compilable under cygwin/no-mingw32 environment
+
+Date : 2007/12/25 20:4:51
+replaced FileHandle fileinfo::fh by wxFile fileinfo::file!
+
+Date : 2007/12/23 20:13:11
+2nd time to use wxWidgets: replace for_each_file by much simplier wxDir::Traverse function,
+gaining on the fly a possiblity do implement the "-n" (no recurse) option
+
+Date : 2007/12/23 8:53:16
+first tries with wxWidgets (converting ULARGE_INTEGER to wxULongLong where possible)
+precompiled headers with g++
+
+Date : 2007/12/20 8:25:20
+added stripping to makefile.gcc and GNUmakefile
+deleted buildunix.sh
+
+Date : 2007/12/17 9:26:55
+updated readme (compiling instructions)
+
+Date : 2007/12/16 8:17:51
+updated a little the readme
+
+Date : 2007/12/13 16:36:2
+added license headers to each file
+
+Date : 2007/12/13 16:12:32
+fixed bug related to i64 (long long) integers (mingw does use the %I64i encoding in printf routines instead of GNUC %lli encoding)
+
+Date : 2007/12/13 12:8:47
+accidentaly wrote scanf instead of sscanf (non-unicode version)
+
+Date : 2007/12/11 12:45:3
+added support for other options than "-m"
+added especially option -f which redirects output to file
+
+Date : 2007/12/10 16:15:3
+added unicode support for mingw build, which support unicode, but as an exception not the wmain function
+refreshed build information in the readme, especially for borland, but also for the new mingw build
+
+Date : 2007/12/9 16:22:53
+fixed some compiler warnings related to signed/unsigned types
+fixed sprintf_s and sscanf_s (secure functions with ellipses) support for non microsoft vc++ (version >= 14.00)
+
+Date : 2007/12/7 18:28:28
+readme contains now all things which have to be done and all usage information.
+
+Date : 2007/12/6 9:15:1
+what i wanted all the time write here
+
+Date : 2007/12/6 9:9:59
+changed some int-types to large-integer types
+noticed and corrected a bug with large files (cause: routine roundup)
+
+Date : 2007/12/5 17:40:18
+added unicode support for windows
+
+Date : 2007/12/3 17:9:20
+added licence, usage and installation instructions
+
+Date : 2007/12/2 16:18:49
+split up the long main function in a few smaller functions
+
+Date : 2007/12/2 9:34:5
+added compiling instructions to readme and some descriptions
+
+Date : 2007/12/1 19:5:58
+Added another additional TEST routine
+moved calculation of statistics in earlier loops, so that some code can be deleted
+updated readme
+
+Date : 2007/12/1 18:18:43
+added readme, and message in makefile
+
+Date : 2007/12/1 18:15:53
+deleted TESTALLOCATION
+deleting unnecessary sizes now not listed as seperate step, therefor reducing output
+
+Date : 2007/12/1 17:2:20
+my first commit
+simply added a few comments marking a TODO section
+(removing double files from the files list)
+
+Date : 2007/12/1 16:31:1
+Initial revision
+
+Date : 2007/12/1 16:31:1
+firs import

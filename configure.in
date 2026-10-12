@@ -1,0 +1,55 @@
+#
+#   Duplicate Files Finder - search for duplicate files
+#   Copyright (C) 2007-2008 Matthias Boehm
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+AC_PREREQ(2.59)
+
+AC_INIT([dupfgui], [0.30] [ma_boehm@users.sourceforge.net])
+
+AM_INIT_AUTOMAKE([1.9 foreign])
+
+echo 'Warning: this is only an incomplete version of a configure system'
+echo '         for this project. Better build the program via '
+echo '         make -f makefile.unix'
+echo '         and ignore any errors the configure system possibly gives. '
+echo '         Also read the file readme.txt, section "Compiling". '
+sleep 10
+
+AC_PROG_CXX
+
+AM_OPTIONS_WXCONFIG
+# version number correct?
+AM_PATH_WXCONFIG(2.6.0, wxWin=1, wxWin=0, , --static --debug)
+
+if test "$wxWin" != 1; then
+	AC_MSG_ERROR([
+	You're wxWidgets version doesn't fit: You have to have
+	at least 2.6.0, and a static debug version installed!\
+	])
+fi
+
+
+
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
+
+echo 'Warning: this is only an incomplete version of a configure system'
+echo '         for this project. Better build the program via '
+echo '         make -f makefile.unix'
+echo '         and ignore any errors the configure system possibly gives. '
+echo '         Also read the file readme.txt, section "Compiling". '

@@ -1,0 +1,161 @@
+#
+#   Duplicate Files Finder - search for duplicate files
+#   Copyright (C) 2007-2008 Matthias Boehm
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+
+ifndef debug
+debug = 1
+endif
+
+ifndef shared
+shared = 0
+endif
+
+ifndef unicode
+unicode=1
+endif
+
+#define cygwin if cygwin is used (adds .exe to program file name)
+
+ifndef cygwin
+cygwin = 0
+endif
+
+outdir := unix
+name := dupf
+namegui := dupfgui
+ifeq ($(cygwin), 1)
+name := $(name).exe
+namegui := $(namegui).exe
+endif
+version := 
+wxconfigopt := --universal=no
+
+ifneq ($(shared),1)
+wxconfigopt := $(wxconfigopt) --static=yes
+else
+wxconfigopt := $(wxconfigopt) --static=no
+endif
+
+ifeq ($(unicode),1)
+wxconfigopt := $(wxconfigopt) --unicode=yes
+version := $(version)u
+else
+wxconfigopt := $(wxconfigopt) --unicode=no
+endif
+
+ifeq ($(debug),1)
+version := $(version)d
+wxconfigopt := $(wxconfigopt) --debug=yes
+else
+wxconfigopt := $(wxconfigopt) --debug=no
+endif
+
+ifeq ($(shared),1)
+version:= $(version)_shared
+endif
+
+outdir := $(outdir)$(version)
+
+nopchopt := `wx-config $(wxconfigopt) --cxxflags` -DwxUSE_STD_IOSTREAM=1 -W -Wall -Wextra
+
+ifeq (1,1)
+nopchopt := $(nopchopt) -DDUPF_USE_TREECTRL
+endif
+
+opt := $(nopchopt) -include ./$(outdir)/stdinc.h
+
+ifeq ($(debug),1)
+dbg = -D_DEBUG -DDEBUG -g
+else
+dbg = -DNDEBUG
+endif
+
+opt := $(opt) $(dbg) 
+nopchopt := $(nopchopt) $(dbg)
+
+libs := `wx-config $(wxconfigopt) --libs`
+headers := dbl.h largeint.h ulargeint.h os_cc_specific.h os_cc_specific_includes.h stdinc.h file.h resource.h \
+	dllexport.h dupf.h minmax.h wxverchk.h
+headersgui := $(headers) dupfgui.h dialog1.h dialog2.h dialog3.h dialog3_list.h dialog3_tree.h treectrl.h \
+	os_cc_specific_gui.h
+
+ifeq ($(cygwin),1)
+ifeq ($(shared),1)
+# for Windows CoCreateInstance and IID_IPersistFile
+libs := $(libs) -lole32 -luuid
+endif
+endif
+
+all: $(outdir) $(outdir)/$(name) $(outdir)/$(namegui)
+
+#change that somewhen (with if exist ......) 
+$(outdir): 
+	if [ ! -e $(outdir) ]; then mkdir $(outdir); fi
+
+$(outdir)/$(name): $(outdir)/stdinc.h.gch $(outdir)/dupf.o $(outdir)/dbl.o $(outdir)/os_cc_specific.o $(outdir)/file.o
+	g++ $(opt) -o "$(outdir)/$(name)" $(outdir)/dupf.o $(outdir)/dbl.o $(outdir)/os_cc_specific.o $(outdir)/file.o $(libs) 
+ifneq ($(debug),1)
+	strip -s $(outdir)/$(name)
+endif
+
+$(outdir)/$(namegui): $(outdir)/stdinc.h.gch $(outdir)/dupfgui.o $(outdir)/os_cc_specific.o \
+	$(outdir)/dialog1.o $(outdir)/dialog2.o $(outdir)/dialog3.o $(outdir)/dbl.o $(outdir)/file.o \
+	$(outdir)/treectrl.o $(outdir)/os_cc_specific_gui.o 
+	g++ $(opt) -o "$(outdir)/$(namegui)" $(outdir)/dupfgui.o $(outdir)/os_cc_specific.o \
+		$(outdir)/dialog1.o $(outdir)/dialog2.o $(outdir)/dialog3.o $(outdir)/dbl.o $(outdir)/file.o \
+		$(outdir)/treectrl.o $(outdir)/os_cc_specific_gui.o $(libs)
+ifneq ($(debug),1)
+	strip -s $(outdir)/$(namegui)
+endif
+
+$(outdir)/dbl.o: dbl.cpp $(headers)
+	g++ $(opt) -c -o $@ dbl.cpp
+
+$(outdir)/dupf.o: dupf.cpp $(headersgui)
+	g++ $(opt) -c -o $@ dupf.cpp
+
+$(outdir)/os_cc_specific.o: os_cc_specific.cpp $(headers)
+	g++ $(opt) -c -o $@ os_cc_specific.cpp
+
+$(outdir)/os_cc_specific_gui.o: os_cc_specific_gui.cpp $(headers)
+	g++ $(opt) -c -o $@ os_cc_specific_gui.cpp
+
+$(outdir)/file.o: file.cpp $(headers)
+	g++ $(opt) -c -o $@ file.cpp
+
+$(outdir)/stdinc.h.gch: stdinc.h os_cc_specific_includes.h
+	g++ $(nopchopt) -c -x c++ -o $@ stdinc.h
+
+$(outdir)/dupfgui.o: dupfgui.cpp $(headersgui)
+	g++ $(opt) -c -o $@ dupfgui.cpp
+
+$(outdir)/dialog1.o: dialog1.cpp $(headersgui)
+	g++ $(opt) -c -o $@ dialog1.cpp
+
+$(outdir)/dialog2.o: dialog2.cpp $(headersgui)
+	g++ $(opt) -c -o $@ dialog2.cpp
+
+$(outdir)/dialog3.o: dialog3.cpp dialog3_list.cpp dialog3_tree.cpp $(headersgui)
+	g++ $(opt) -c -o $@ dialog3.cpp
+
+$(outdir)/treectrl.o: treectrl.cpp $(headersgui)
+	g++ $(opt) -c -o $@ treectrl.cpp
+
+run:
+	-$(outdir)/$(name)

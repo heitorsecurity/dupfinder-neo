@@ -1,0 +1,113 @@
+COMPILING:
+----------
+
+0) General
+
+  Each makefile accepts some options. Use "option=1" to enable
+  an option and "option=0" to disable it. 
+
+  - "debug" determines whether to build a debug version or a 
+    retail version. Enabled by default. 
+
+  - "unicode" determines whether to build a unicode version of 
+    the program. That option mainly exists for
+    supporting the old (95, 98, ME) windows versions, which do
+    not support unicode. It is enabled by default. 
+    Cygwin does not support Unicode at the moment. 
+
+  - "shared" determines whether to link wxWidgets statically 
+    (results in bigger executables, but removes the dependency on
+    a shared wxWidgets library) or whether it links with a dynamic
+    loaded shared library.
+    Default value is off. You have to have installed a matching 
+    wxWidgets version (build with --disable-shared for a static 
+    version). 
+
+  - "wxdir" should point to the path in which wxWidgets is installed
+    (Windows only). Defaults to "C:\wx". Spaces in this path are 
+    not supported at the moment. 
+
+  - You need at least wxWidgets version 2.7.1 for Unix, and 
+    2.8.3 for Windows (it would compile with version 2.7.1 on 
+    Windows, but because of a nasty error (->GetSize() on files)
+    which was corrected first in version 2.8.3, and because this 
+    function is crucial for the program, you have to use 2.8.3 
+    at least).
+    Recommended is for sure that you use the most recent version
+    of wxWidgets!
+
+
+1) Windows
+
+  Supported are on windows these compilers:
+  Borland c++, Microsoft c++, Mingw, Cygwin 
+  (Watcom is currently not supported because of the lack
+  of a working STL library). 
+
+  a) First, you have to build wxWidgets with your preferred compiler. 
+     Refer to the documentation in the doc directory. 
+     As options, use either "BUILD=release" or "BUILD=debug" and
+     either "UNICODE=1" or "UNICODE=0". 
+
+  b) For each compiler exists a seperate makefile, and the 
+     intermediate files and executables will placed in a 
+     directory of which the name depends on the compiler and 
+     on the build options. 
+     Usually, a "d" is appended to signalize debug versions, 
+     and a "u" is appended to signalize unicode versions. 
+
+     Microsoft C++ compiler: 
+       Makefile: makefile.vc 
+       Directory: vc*
+       Example: nmake -f makefile.vc debug=0 unicode=1 shared=0
+
+     Borland C++ compiler:
+       Makefile: makefile.bcc
+       Directory: bcc*
+       Example: make -f makefile.bcc -Ddebug=0 -Dunicode=1 shared=1
+
+     Mingw compiler (see also note below): 
+       Makefile: makefile.gcc
+       Directory: gcc*
+       Example: mingw32-make -f makefile.gcc debug=0 unicode=1 shared=1
+       Note: mingw32-make must be called from the windows commandline
+             (cmd.exe)! 
+
+     Cygwin compiler: see Unix section
+
+
+
+2) Unix
+
+  a) First you have to install wxWidgets. Use either a package of 
+     your distribution (e.g. Debian 4.0: libwxgtk2.6-dev), or download
+     the newest version of wxWidgets from 
+     http://sourceforge.net/projects/wxWindows. Choose a version with 
+     GTK support. 
+     In the latter case, you have to configure wxWidgets with the same options
+     which you will later use when building the actual program. 
+     Use either: --enable-debug or --disable-debug, --enable-shared or 
+     --disable-shared, --enable-unicode or --disable-unicode. When using cygwin, 
+     you must add --with-msw as configure option; when you are compiling the
+     program on a Unix sytem, use --with-gtk. You can 
+     also build more than one wxWidgets version. For more detailed information
+     see the documentation of wxWidgets. 
+     Note that you have to have a GTK development library installed. 
+
+
+     Cygwin notes to configure options:
+ 
+     - use --with-msw instead of --with-gtk
+     - specify --disable-std_string when using --enable-unicode, 
+       else you will get compiling errors.
+
+  b) Then you have to build the program via the makefile makefile.unix.
+     Example: make -f makefile.unix unicode=1 debug=0 shared=0
+     All output files go to a specific directory, of which the name depends on 
+     the build options. It starts always with unix, then there is an
+     "u" added for a unicode version, a "d" added for debug versions, and a 
+     "_shared" for shared versions. 
+
+     A configure system is present, but by far not complete yet. Please don't use
+     it. 
+

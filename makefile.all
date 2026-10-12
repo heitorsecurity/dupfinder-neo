@@ -1,0 +1,88 @@
+#
+#   dupfinder - search for duplicate files
+#   Copyright (C) 2007-2008 Matthias Boehm
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+# This file builds all windows versions
+# Paths must be set up correctly before
+
+!ifndef vc
+vc = 1
+!endif
+
+!ifndef borland
+borland = 1
+!endif
+
+!ifndef mingw
+mingw = 1
+!endif
+
+!ifndef new
+new = 0
+!endif
+
+!ifndef shared
+shared = 1
+!endif
+
+!if $(new)==1
+build_all_a = -A
+build_all_b = -B
+!else
+build_all_a = 
+build_all_b = 
+!endif
+
+
+all: 
+!if $(vc) == 1
+	-nmake -f makefile.vc $(build_all_a) debug=0 unicode=0 shared=0
+	-nmake -f makefile.vc $(build_all_a) debug=1 unicode=0 shared=0
+	-nmake -f makefile.vc $(build_all_a) debug=0 unicode=1 shared=0
+	-nmake -f makefile.vc $(build_all_a) debug=1 unicode=1 shared=0
+!if $(shared) == 1
+	-nmake -f makefile.vc $(build_all_a) debug=0 unicode=0 shared=1
+	-nmake -f makefile.vc $(build_all_a) debug=1 unicode=0 shared=1
+	-nmake -f makefile.vc $(build_all_a) debug=0 unicode=1 shared=1
+	-nmake -f makefile.vc $(build_all_a) debug=1 unicode=1 shared=1
+!endif
+!endif
+!if $(borland) == 1
+	-make -f makefile.bcc $(build_all_b) -Ddebug=0 -Dunicode=0 shared=0
+	-make -f makefile.bcc $(build_all_b) -Ddebug=1 -Dunicode=0 shared=0
+	-make -f makefile.bcc $(build_all_b) -Ddebug=0 -Dunicode=1 shared=0
+	-make -f makefile.bcc $(build_all_b) -Ddebug=1 -Dunicode=1 shared=0
+!if $(shared) == 1
+	-make -f makefile.bcc $(build_all_b) -Ddebug=0 -Dunicode=0 shared=1
+	-make -f makefile.bcc $(build_all_b) -Ddebug=1 -Dunicode=0 shared=1
+	-make -f makefile.bcc $(build_all_b) -Ddebug=0 -Dunicode=1 shared=1
+	-make -f makefile.bcc $(build_all_b) -Ddebug=1 -Dunicode=1 shared=1
+!endif
+!endif
+!if $(mingw) == 1
+	-mingw32-make -f makefile.gcc $(build_all_b) debug=0 unicode=0 shared=0
+	-mingw32-make -f makefile.gcc $(build_all_b) debug=1 unicode=0 shared=0
+	-mingw32-make -f makefile.gcc $(build_all_b) debug=0 unicode=1 shared=0
+	-mingw32-make -f makefile.gcc $(build_all_b) debug=1 unicode=1 shared=0
+!if $(shared) == 1
+	-mingw32-make -f makefile.gcc $(build_all_b) debug=0 unicode=0 shared=1
+	-mingw32-make -f makefile.gcc $(build_all_b) debug=1 unicode=0 shared=1
+	-mingw32-make -f makefile.gcc $(build_all_b) debug=0 unicode=1 shared=1
+	-mingw32-make -f makefile.gcc $(build_all_b) debug=1 unicode=1 shared=1
+!endif
+!endif

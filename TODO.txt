@@ -1,0 +1,284 @@
+TODO/IDEAS:
+-----------
+Description of signs:
+- Todo
++ Done
+! Todo which can't be done
+? Todo which is questionable
+. lower priority todo
+
++ Create a nice (os- and make-utitlity-independent?! if possible) makefile (done, different makefiles)
++ See wxWidget's makefile-collection, this is very nice, for every compiler a special makefile! 
++ putting every compiler's files in a special directory, even different for debug/nodebug unicode/no-unicode build (done)
++ converting all integers to longlong (__i64) integers, where overflow could occur (e.g. the number of double files) done. 
++ unicode support for windows... done!
++ (delete OpenFile, ReadFile, CloseFile and replace them by fopen, fread, fclose) (old)
++ adding option -max (max size of files to compare with each other) done.
+? maxbytes (compare max. n bytes of a file) 
++ adding IsSameFileFunction (done -> wxWidgets)
++ adding error messages (when finding files, comparing files...) (done via wxWidgets)
++ supporting files over 4 GB always?! yes, i do hope so. 
++ adding option -f <filename> for output to file? (because unicode chars aren't displayed in windows consoles)
+  unicode output. done
++ adding option which determines if the small sized files or the large sized files are treated and displayed firstd. done
++ adding option for not going in subdirectories (done)
++ removing clock_t from source, replacing it with time_t: that wasn't an error, it was my fault!
++ (correct cygwin-build lf/cr errors) related to "adding option -f <filename> " seems not to be possible
++ merging searching files and sorting files by size algorithms ? done, now that sortfilesbysize is that fast
++ somehow fixing the problem with the sprintf_s routines, which are currently supported only by microsoft v14 (or deleting
+  them?? but they are to nice to delete them, so something other, but what!?!?, has to be done...) done! with v-printf-routines. 
+  Nevertheless a call to sscaf_s (if occuring) with an "%s" format argument would very propably leed into trouble, so i must not
+  use this!
++ playing a bit with some compiling options (especcially optimization for gcc!) no need to
++ replacing the f<*> c functions with the PSDK-functions for true unicode support (difficult, because of stdout?...) done
++ need a faster container than list for testing for double scanning of directories. done (using set). 
++ linux makefile mkdir if at last done.
++ removing the current logging construct (removing wxUSE_STD_IOSTREAM, because it needs a recompile of wxWidgets), 
+  perhaps using wxLogNull and my own error reporting routines? (done via wxLogStream)
++ suppress logging completely (done via wxLogStream)
+! delete unneccessary (esp. unix) includes
++ perhaps setting error flag if any error on that file is encountered 
++ add progress display for sorting files by size (not necessary any more)
++ display speed in kbytes/second done (mb/sec)
++ somehow reduce memory consumption done via filedata
++ display option: -o ordered by directory implmented in gui version
++ need a close look to signed/unsigned int32/int64 types done!!
+? time display under linux does not work properly
++ add option -h for hidden files? done. 
++ instead of recognizing double dirs recognizing double files? (but performance would worsen)??? it is better the way it is 
++ status info at the end of the output, not at the beginning, where it cannot be read easily most often at last - done via struct DuplicateFilesStats
++ do a lot of cleanup (e.g. those old BENCHMARK and TEST things) done!
++ warning message only if there are really unicode characters which cannot be displayed (not only non-ASCII characters) done.
+- reacting on signals (do not break program completely, but print the results nevertheless) there is strange behaviour on Strg+c not needed
++ increase speed of comparefiles1 (speed suffers of the steadily seeking of the harddisk) outdated
++ does time(NULL) reduce speed? no.
++ size n/n display at once and at first done.
++ option (break on (fatal) errors or not) sometime had some sense...
++ accelerating search algorithm (partially done by removing double-dir-algorithms). Restored old native algorithms
++ displaying error BEFORE start of program if dir does not exist (done)
++ detecting links in unix important! done.
++ for every dir its own settings (mask, size, recurse into subdirs, search hidden files...)! done!
+? reimplement a double listed files remove algorithm!
+  it should be easy to implement a "do not add double files" algorithm (list->set!) much too slow!
++ fix div by zero errors (not fixed, but disappeared)
+. create manifest file (+themed borders)
+- create configure/automake/autoconf system for unix
++ installer for windows done.
++ removing this *** wxUSE_STD_IOSTREAM again (not complete yet)
++ create clear <dirlist> button done.
++ considered ??? files seems to be right
++ heap corruption when canceling in windows! (still there?) outdated.
+! checking that there are no double &<> in dialog boxes (sticky todo)
++ fixing those massive memory leaks which occur when interrupted (via bContinue = false) done via File
++ supporting unix unicode build works now.
++ ALL memory cleanup with gui (nearly impossible?) perhaps struct to class? outdated
++ instead of yielding creating a new thread? no. Much simpler the way it is. 
++ context menu (delete, create hard-/symlink, open folder) done
++ context menu Ctrl+C (copy) done
++ About box in first dialog? done
++ show in progress display which files are compared no!
++ add remove all button to updateview done. 
++ gui/console version in one package! ok, since now
+? storing current user preferences (checkboxes, size, ...)?
+- instead of completely removing only move to trash (if there were some simple functions...)
+. synchronization "show messages" checkbox <-> message window
++ open containing folder is not working in linux (perhaps with backslash at the end?) works with leading file:///
++ change modal dialog boxes to not modal dialogboxes done.
++ delete marked instead of the item over which it was and filenames done.
+! dynamic cast where possible (Log targets, FindWindow, ...)
++ checkbox with don't confirm delete done.
++ delete key (done)
++ remove list from DeleteFiles
++ Display whether restricted or not(red) "restricted to ...." done.
++ context menu restrict
++ revising all that cleaning up/memory problems associated with fileinfo (class File)
++ reimplement the search for duplicate files algorithm, so that i have no problems with deleting
+  a fileinfo object twice! done (File class).
+. add a note please no short filesnames in restriction controls?!?
++ instead of CleanUp full return to dialog1 function done.
++ checkbox: store currently displayed / all results! no checkbox, but store always displayed list
++ hiding some functions (private to file scope) avoided by class DuplicateFilesFinder
++ creating delete findfileinfo function in dbl.cpp? out of date
++ including the right header (or remove it completely) done.
++ shortening long filename in restriction info? Not important any more, because removed
++ what about a program icon? done, except for borland included!
++ pause as in 7-zip has it now. 
++ again: reducing memory consumption (circa 200 MB with circa 803,000 files) how?
++ batch file for windows me dupf console mode done.
++ rename program (dupfinder -> Duplicate Files Finder) done.
+. fixing this bug where whole os (windows) crashes (will be very difficult, because i have no idea
+  why it is there - but: it is propably too much memory consumption...)
++ writing .bat file with cd $INSTDIR instruction when installing on 95/98/me. done. 
+
++ installer nice AI done.
++ wrapping / shortening text which appears when restricting view. Out of date. 
++ hardlinks / softlinks where supported softlinks yes. hardlinks with warning! 
++ display files only in dir ---> and its subdirs???? (even possible?) yes, done.
++ think about minsize, whether it should be perhaps really the MINsize, not the MIN-but-not-EQUAL-size: is minimal size always
++ adding MAXimal size of files option? but what for... done.
++ Add button always enabled (UpdateView changes??) done (also in dialog 3)
++ Treating 0-bytes sized files as double files (option?) set up
++ make dll (with dbl.cpp code)? done!!! (TODO: Installer!) done.
+- unix shared library...
++ on clicking a list item display the information in the controls below? done!
++ Wrap function!!! does only work with spaced text
++ exchange if !_WIN32 by if __UNIX__
+! looking at #if's
++ adding unicode support for linux/unix not necessary, but would be nice done, see above
+-----------
++ IsSymLinkSupported should take volume argument or something like this not necessary
++ remove some things in os_cc_specific (e.g. DWORD, LONG, ...) done.
++ displaying info (size of all duplicates) in gui version as well done.
++ make filenames not reappear when View is updated!!!!!!!!! done.
++ delete processed files (deleted/symlinked) from internal list!!!!!!!!! done.
++ do some actions (hard-/softlink) on more than one file? not possible
++ add to result dialog "display files which match mask ..." template added.
++ +/- button on headers in result dialog (and dblclick)!! done via wxTreeCtrl
+- supporting watcom compiler (not possible yet because of lack of STL library)
++ replacing list.size() == 0 by list.empty()! done.
++ removing some separators of popup menu ?? not important
+--- automake
+- make install for unix (perhaps from makefile?)
+
+- rewriting wxWidgets recognition macro
+
+- correct wxWidgets version number in configure.in
+- add precompiled headers to automake
+- Autotools
+- debug/non-debug version for automake
+- move all output files to extra dir 
+--- end automake
++ coloring matching files in restricted view
++ coloring / ____masking___ out files in one interface
+  replace subdirs by general ____mask___ or ___add___ this... done.
++ layout dialog1 / dialog3, and making the Border system (wxLEFT etc. ) a bit more 
+  overviewable (most important how it looks like, not how it is done)
+! also aligning all elements vertically... 
+- implement native searching routine also for unix. not at the moment
++ remove updateview from dialog3 . done.
++ more descriptive class names for dialogs?? Why?
++ instead/additional to match mask "contain string"? no. 
++ reducing width of result dialog done.
++ with items associated information (ItemData) static. doesn't work
++ treeview. yip.
++ delete all except this done.
++ test no items in list event! working 
++ add automake files to cvs system done.
++ displaying statistics in root item
++ root item not collapsable
++ expand all / unexpand all 
++ option command line version: do not display progress output done.
++ help option (command line program) done.
+- bold popupmenu default item (?) possible, but looks not very nice (commented in source)
++ remove mutable, restore unconst(...)  done. 
+- adding a test if the specific file system supports hard/symlinks before actually trying to create a link...
++ removing from the bottom to the top ??? 
+- do not display groups with only one item left????
+. quick links (delete all/hard/symlink all)
++ hard/symlinking for more than one selection (using always the first selected) nonsense
++ no remaining temporary files must be left! (see CreateTempFile)!!! done.
++ minimize/maximize buttons done.
+- recognize hardlinks?
++ restriction options not shown at first ( >>> ) ? done.
++ class DuplicateFilesFinder! interface created, now make interals! done.
++ internals DuplicateFilesFinder (e.g. names) done.
+- keeping clear document/view structure
++ merge the both delete files functions. done.
++ display control buttons (dialog 1/3) in *one* border no!
++ in class DuplicateFilesFinder create dialog 2! 
+  (really good idea? would increase console executable size with grpahical code not needed)
+  or just create the window nonsense!
++ add statistics structure to DuplicateFilesFinder done
++ allow non-debug wxWidgets library to be linked in in debug compilation mode (does not work)
++ restore testing for double folders (dupf)  done.
++ add to statistcs sum of bytes read, average speed (not needed)
++ Speed display always, not only for large files done!
+- Bug report concerning tree control ("No items" case)
++ read from stdin (s. unix) when no paths given on commandline ? no!
++ gui version implemention of DuplicateFilesFinder and removal of old code afterwards done.
+- restoring func. of TEST 
+- ansynchronous i/o?
+- internationalization
+- create cache class (move code to cache class)
+. solve problem where selecion doesn't get selected if clicking right treectrl related
+. clicking on header: copy filenames treectrl related
+. foreground/background as in 7-zip 
++ dialog 1 description format done.
++ progress display when filling list? done.
+- command line program --version
++ exclude from search
++ return to old nice list!!!!!!!!!!!!!! OR: accelarate somehow speed of tree ctrl. 
+  Two versions of dialog3, one with list, one with tree
++ different titles for every dialog.
++ restore delete_but_this functionality done.
++ display statistics in text ctrl/task bar !!! (move wxFont) done.
+- rename dbl.cpp to dupfinder.cpp
++ rename files and fit makefiles  done.
++ let enable/disable static unix yes, windows still to do! done.
++ wxdir in Windows makefiles done.
++ autoreconfig done.
++ perhaps showing the statistics somewhere else... done (StaticBox sixer)
+- fixing too much files problem
+- automatically marking files
+- marking all files of one directory and then all duplicate files of files in this directory
+- checkboxes in front of file items?
++ shared library for windows done.
++ build with wxWidgets as dll done.
++ replace __MINGWVERSION by __MINGW32__ or whatever is correct (also other). done.
++ symbolic links = .lnk on Windows?!! done!
+- increase speed by reading only 1 sector of every file first!
++ enable optimize wxWidgets?? no need to do this, is enabled by default
++ retest on unix done.
+. cygwin unicode build not possible until cygwin supports unicode....
+  getting the wxWidgets build on cygwin (unicode not supported)
++ shared instead of static (makefile option) done.
+- reorder tree (->src, ->include)
+. detecting symbolic links on windows
+  instead of testing on file extention, test file content for detecting symbolic windows links?!
+  (which is propably too slow!)
+- get symbolic file name function  (for windows, because windows needs .lnk appended for links)
++ statistics dynamic, yes, but performance? enough performance
+- update headers
++ allow *.abc;*.def;*.xxx masks done.
++ one only duplicate file counted in statistics? no, but now. 
++ Defaults button done.
+- (Windows) Help, man page for unix
++ remove * filemask check done.
++ test exclude code done.
+- removed unnecessary if's (os_cc_specific)
++ add to desc of dialog 3 ".. you can also mark more than one file"
++ makefile.unix "and"  doesn't exist
++ percentage in progress view yes.
++ instead of size/size display the bytes read/sum bytes to read  (files read)
++ move status display code to extra functions done.
+- popupmenu sensitive whether one or more files are selected (?)
+- progress gauge in dialog3 acts strange...
+- extend all actions on one file on more than one file if ever possible
+  (e.g. DeleteButThis, if only one file is marked each group)
++ PreviousState! OK
+- option for unix makefiles whether to use pch's or not
+- delete items from list common function
++ option whether to use 2.6 incompatible functions?? (or at least warn?) ??
++ message hardlinks... much better now
+- cmake/bakefile?
+  or makefiles update (esp. makefile.gcc) 
++ ... (try to remove duplicates!) duplicates removed
++ test command line version done.
+- allow wxdir with spaces?
++ icon with borland and gcc as well yes.
+- rename members (m_ prefix)
+- show warning when nested folders are specified before adding/changing dir in gui and console version
++ error platforminfo on program start. solved.
++ strip dll done.
+! double code in dialog 1 - 3
++ single selection in dialog1 done.
+! test for memory leaks
++ instead of c1, c2... in dialog1 array c[8] done.
+? trimming todo.txt (removing all REALLY done elements)
++ unconst which unix? all gcc!
+- cygwin supporting shared dll?
+? DLLEXPORT needed for structs without functions?
+- executables build with shared don't work
++ Installer choose vc/gcc by var ( + manifests, if present)
++ readme.txt compiling -> compiling.txt done.
+- RUNTIME_LIBS = static? (or where to get msvc*80.dll's from?)
