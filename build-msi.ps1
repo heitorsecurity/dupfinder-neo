@@ -78,6 +78,7 @@ ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('Manufacturer', '$ap
 ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('ProductLanguage', '1033')"
 ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('UpgradeCode', '$upgradeCode')"
 ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('ALLUSERS', '1')"
+ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('INSTALLDIR', 'C:\Program Files\DupFinder-Neo')"
 ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('DiskPrompt', 'DupFinder-Neo $appDisplayVersion Installation [1]')"
 ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('REINSTALLMODE', 'amus')"
 ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('MSIRESTARTMANAGERCONTROL', 'Disable')"
@@ -133,98 +134,102 @@ ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Targe
 ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_MenuUninstall', 'MenuFolder', 'DESINS~1|Desinstalar DupFinder-Neo', 'C_Setup', '[#F_Setup]', '/uninstall', 'Desinstalar DupFinder-Neo $appDisplayVersion', NULL, NULL, NULL, 1, 'INSTALLDIR')"
 ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_DeskExe', 'DesktopFolder', 'DUPFIN~1|DupFinder-Neo', 'C_Exe', '[#F_Exe]', NULL, 'DupFinder-Neo $appDisplayVersion (by @heitorsecurity)', NULL, NULL, NULL, 1, 'INSTALLDIR')"
 
-# 10. Native MSI UI Tables: TextStyle, Dialog, Control, ControlEvent
+# 10. Native MSI UI Tables: TextStyle, Dialog, Control, ControlEvent, EventMapping
 Write-Host "Configurando telas interativas do assistente MSI (Next/Back/Install)..."
 
-ExecSql $db "CREATE TABLE TextStyle (TextStyle CHAR(72) NOT NULL, FontFamily CHAR(64) NOT NULL, Size SHORT NOT NULL, Color LONG, StyleBits SHORT PRIMARY KEY TextStyle)"
-ExecSql $db "INSERT INTO TextStyle (TextStyle, FontFamily, Size, Color, StyleBits) VALUES ('DlgFont8', 'Tahoma', 8, NULL, 0)"
-ExecSql $db "INSERT INTO TextStyle (TextStyle, FontFamily, Size, Color, StyleBits) VALUES ('DlgTitleBold', 'Tahoma', 10, NULL, 1)"
+ExecSql $db "CREATE TABLE TextStyle (TextStyle CHAR(72) NOT NULL, FaceName CHAR(32) NOT NULL, Size SHORT NOT NULL, Color LONG, StyleBits SHORT PRIMARY KEY TextStyle)"
+ExecSql $db "INSERT INTO TextStyle (TextStyle, FaceName, Size, Color, StyleBits) VALUES ('DlgFont8', 'Tahoma', 8, 0, 0)"
+ExecSql $db "INSERT INTO TextStyle (TextStyle, FaceName, Size, Color, StyleBits) VALUES ('DlgTitleBold', 'Tahoma', 10, 0, 1)"
 
 ExecSql $db "CREATE TABLE Dialog (Dialog CHAR(72) NOT NULL, HCentering SHORT NOT NULL, VCentering SHORT NOT NULL, Width SHORT NOT NULL, Height SHORT NOT NULL, Attributes LONG NOT NULL, Title CHAR(128) NOT NULL, Control_First CHAR(72) NOT NULL, Control_Default CHAR(72) NOT NULL, Control_Cancel CHAR(72) NOT NULL PRIMARY KEY Dialog)"
 ExecSql $db "INSERT INTO Dialog (Dialog, HCentering, VCentering, Width, Height, Attributes, Title, Control_First, Control_Default, Control_Cancel) VALUES ('WelcomeDlg', 50, 50, 370, 270, 3, '$appTitle', 'Next', 'Next', 'Cancel')"
 ExecSql $db "INSERT INTO Dialog (Dialog, HCentering, VCentering, Width, Height, Attributes, Title, Control_First, Control_Default, Control_Cancel) VALUES ('LicenseAgreementDlg', 50, 50, 370, 270, 3, '$appTitle', 'Next', 'Next', 'Cancel')"
 ExecSql $db "INSERT INTO Dialog (Dialog, HCentering, VCentering, Width, Height, Attributes, Title, Control_First, Control_Default, Control_Cancel) VALUES ('InstallDirDlg', 50, 50, 370, 270, 3, '$appTitle', 'Next', 'Next', 'Cancel')"
 ExecSql $db "INSERT INTO Dialog (Dialog, HCentering, VCentering, Width, Height, Attributes, Title, Control_First, Control_Default, Control_Cancel) VALUES ('VerifyReadyDlg', 50, 50, 370, 270, 3, '$appTitle', 'Install', 'Install', 'Cancel')"
-ExecSql $db "INSERT INTO Dialog (Dialog, HCentering, VCentering, Width, Height, Attributes, Title, Control_First, Control_Default, Control_Cancel) VALUES ('ProgressDlg', 50, 50, 370, 270, 3, '$appTitle', 'Cancel', 'Cancel', 'Cancel')"
+ExecSql $db "INSERT INTO Dialog (Dialog, HCentering, VCentering, Width, Height, Attributes, Title, Control_First, Control_Default, Control_Cancel) VALUES ('ProgressDlg', 50, 50, 370, 270, 1, '$appTitle', 'Cancel', 'Cancel', 'Cancel')"
 ExecSql $db "INSERT INTO Dialog (Dialog, HCentering, VCentering, Width, Height, Attributes, Title, Control_First, Control_Default, Control_Cancel) VALUES ('ExitDialog', 50, 50, 370, 270, 3, '$appTitle', 'Finish', 'Finish', 'Finish')"
 
 ExecSql $db "CREATE TABLE Control (Dialog_ CHAR(72) NOT NULL, Control CHAR(72) NOT NULL, Type CHAR(32) NOT NULL, X SHORT NOT NULL, Y SHORT NOT NULL, Width SHORT NOT NULL, Height SHORT NOT NULL, Attributes LONG NOT NULL, Property CHAR(72), Text CHAR(0), Control_Next CHAR(72), Help CHAR(255) PRIMARY KEY Dialog_, Control)"
 
-# Controls: WelcomeDlg
+# Controls: WelcomeDlg (Cycle: Title -> Desc -> BottomLine -> Next -> Cancel -> Title)
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('WelcomeDlg', 'Title', 'Text', 20, 20, 330, 35, 3, NULL, '{\DlgTitleBold}Bem-vindo ao Assistente de Instalacao do DupFinder-Neo v1.0', 'Desc', NULL)"
-ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('WelcomeDlg', 'Desc', 'Text', 20, 65, 330, 110, 3, NULL, 'O Assistente de Instalacao vai instalar o DupFinder-Neo v1.0 (by @heitorsecurity) no seu computador.[~][~]Desenvolvido originalmente por Patrick De Smet e modernizado com novas tecnologias por @heitorsecurity.[~][~]Clique em Avancar para continuar ou Cancelar para sair.', 'Next', NULL)"
+ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('WelcomeDlg', 'Desc', 'Text', 20, 65, 330, 110, 3, NULL, 'O Assistente de Instalacao vai instalar o DupFinder-Neo v1.0 (by @heitorsecurity) no seu computador.[~][~]Desenvolvido originalmente por Patrick De Smet e modernizado com novas tecnologias por @heitorsecurity.[~][~]Clique em Avancar para continuar ou Cancelar para sair.', 'BottomLine', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('WelcomeDlg', 'BottomLine', 'Line', 0, 234, 370, 0, 1, NULL, NULL, 'Next', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('WelcomeDlg', 'Next', 'PushButton', 236, 243, 56, 17, 3, NULL, '&Avancar >', 'Cancel', NULL)"
-ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('WelcomeDlg', 'Cancel', 'PushButton', 304, 243, 56, 17, 3, NULL, 'Cancelar', 'Next', NULL)"
+ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('WelcomeDlg', 'Cancel', 'PushButton', 304, 243, 56, 17, 3, NULL, 'Cancelar', 'Title', NULL)"
 
-# Controls: LicenseAgreementDlg
+# Controls: LicenseAgreementDlg (Cycle: Title -> Subtitle -> LicenseText -> BottomLine -> Back -> Next -> Cancel -> Title)
 $licenseSummary = "DupFinder-Neo v1.0 (by @heitorsecurity)[~][~]Original Work: Copyright (C) Patrick De Smet (GNU GPL v2)[~]Modernizacao e Recursos Novos: Copyright (C) 2026 @heitorsecurity[~][~]Este programa e software livre; voce pode redistribui-lo e/ou modifica-lo sob os termos da licenca GNU General Public License versao 2.[~][~]Para ver os termos integrais, consulte LICENSE.TXT instalado na pasta do programa.[~][~]Clique em Avancar para concordar e continuar com a instalacao."
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('LicenseAgreementDlg', 'Title', 'Text', 20, 12, 330, 25, 3, NULL, '{\DlgTitleBold}Contrato de Licenca e Modificacoes', 'Subtitle', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('LicenseAgreementDlg', 'Subtitle', 'Text', 20, 35, 330, 20, 3, NULL, 'Leia os termos da licenca GNU GPL v2 e adendos de @heitorsecurity:', 'LicenseText', NULL)"
-ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('LicenseAgreementDlg', 'LicenseText', 'Text', 20, 60, 330, 130, 3, NULL, '$licenseSummary', 'Back', NULL)"
+ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('LicenseAgreementDlg', 'LicenseText', 'Text', 20, 60, 330, 130, 3, NULL, '$licenseSummary', 'BottomLine', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('LicenseAgreementDlg', 'BottomLine', 'Line', 0, 234, 370, 0, 1, NULL, NULL, 'Back', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('LicenseAgreementDlg', 'Back', 'PushButton', 180, 243, 56, 17, 3, NULL, '< &Voltar', 'Next', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('LicenseAgreementDlg', 'Next', 'PushButton', 236, 243, 56, 17, 3, NULL, '&Avancar >', 'Cancel', NULL)"
-ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('LicenseAgreementDlg', 'Cancel', 'PushButton', 304, 243, 56, 17, 3, NULL, 'Cancelar', 'Back', NULL)"
+ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('LicenseAgreementDlg', 'Cancel', 'PushButton', 304, 243, 56, 17, 3, NULL, 'Cancelar', 'Title', NULL)"
 
-# Controls: InstallDirDlg
+# Controls: InstallDirDlg (Cycle: Title -> Subtitle -> PathEdit -> BottomLine -> Back -> Next -> Cancel -> Title)
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('InstallDirDlg', 'Title', 'Text', 20, 15, 330, 25, 3, NULL, '{\DlgTitleBold}Pasta de Destino da Instalacao', 'Subtitle', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('InstallDirDlg', 'Subtitle', 'Text', 20, 45, 330, 40, 3, NULL, 'O assistente vai instalar o DupFinder-Neo v1.0 na pasta abaixo.[~][~]Para instalar nesta pasta, clique em Avancar. Para alterar, digite o caminho:', 'PathEdit', NULL)"
-ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('InstallDirDlg', 'PathEdit', 'PathEdit', 20, 95, 330, 18, 3, 'INSTALLDIR', NULL, 'Back', NULL)"
+ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('InstallDirDlg', 'PathEdit', 'PathEdit', 20, 95, 330, 18, 3, 'INSTALLDIR', NULL, 'BottomLine', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('InstallDirDlg', 'BottomLine', 'Line', 0, 234, 370, 0, 1, NULL, NULL, 'Back', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('InstallDirDlg', 'Back', 'PushButton', 180, 243, 56, 17, 3, NULL, '< &Voltar', 'Next', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('InstallDirDlg', 'Next', 'PushButton', 236, 243, 56, 17, 3, NULL, '&Avancar >', 'Cancel', NULL)"
-ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('InstallDirDlg', 'Cancel', 'PushButton', 304, 243, 56, 17, 3, NULL, 'Cancelar', 'Back', NULL)"
+ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('InstallDirDlg', 'Cancel', 'PushButton', 304, 243, 56, 17, 3, NULL, 'Cancelar', 'Title', NULL)"
 
-# Controls: VerifyReadyDlg
+# Controls: VerifyReadyDlg (Cycle: Title -> Subtitle -> BottomLine -> Back -> Install -> Cancel -> Title)
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('VerifyReadyDlg', 'Title', 'Text', 20, 25, 330, 25, 3, NULL, '{\DlgTitleBold}Pronto para Instalar', 'Subtitle', NULL)"
-ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('VerifyReadyDlg', 'Subtitle', 'Text', 20, 65, 330, 80, 3, NULL, 'O Assistente de Instalacao esta pronto para iniciar a instalacao do DupFinder-Neo v1.0 (by @heitorsecurity).[~][~]Clique em Instalar para iniciar a copia dos arquivos e criacao dos atalhos na Area de Trabalho e no Menu Iniciar.', 'Back', NULL)"
+ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('VerifyReadyDlg', 'Subtitle', 'Text', 20, 65, 330, 80, 3, NULL, 'O Assistente de Instalacao esta pronto para iniciar a instalacao do DupFinder-Neo v1.0 (by @heitorsecurity).[~][~]Clique em Instalar para iniciar a copia dos arquivos e criacao dos atalhos na Area de Trabalho e no Menu Iniciar.', 'BottomLine', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('VerifyReadyDlg', 'BottomLine', 'Line', 0, 234, 370, 0, 1, NULL, NULL, 'Back', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('VerifyReadyDlg', 'Back', 'PushButton', 180, 243, 56, 17, 3, NULL, '< &Voltar', 'Install', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('VerifyReadyDlg', 'Install', 'PushButton', 236, 243, 56, 17, 3, NULL, '&Instalar', 'Cancel', NULL)"
-ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('VerifyReadyDlg', 'Cancel', 'PushButton', 304, 243, 56, 17, 3, NULL, 'Cancelar', 'Back', NULL)"
+ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('VerifyReadyDlg', 'Cancel', 'PushButton', 304, 243, 56, 17, 3, NULL, 'Cancelar', 'Title', NULL)"
 
-# Controls: ProgressDlg
+# Controls: ProgressDlg (Cycle: Title -> Subtitle -> ProgressBar -> BottomLine -> Cancel -> Title)
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ProgressDlg', 'Title', 'Text', 20, 25, 330, 25, 3, NULL, '{\DlgTitleBold}Instalando o DupFinder-Neo v1.0...', 'Subtitle', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ProgressDlg', 'Subtitle', 'Text', 20, 65, 330, 35, 3, NULL, 'Aguarde enquanto os arquivos e componentes sao instalados no computador.', 'ProgressBar', NULL)"
-ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ProgressDlg', 'ProgressBar', 'ProgressBar', 20, 115, 330, 15, 65539, NULL, NULL, 'Cancel', NULL)"
+ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ProgressDlg', 'ProgressBar', 'ProgressBar', 20, 115, 330, 15, 65539, NULL, NULL, 'BottomLine', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ProgressDlg', 'BottomLine', 'Line', 0, 234, 370, 0, 1, NULL, NULL, 'Cancel', NULL)"
-ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ProgressDlg', 'Cancel', 'PushButton', 304, 243, 56, 17, 3, NULL, 'Cancelar', 'ProgressBar', NULL)"
+ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ProgressDlg', 'Cancel', 'PushButton', 304, 243, 56, 17, 3, NULL, 'Cancelar', 'Title', NULL)"
 
-# Controls: ExitDialog
+# Controls: ExitDialog (Cycle: Title -> Subtitle -> BottomLine -> Finish -> Title)
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ExitDialog', 'Title', 'Text', 20, 25, 330, 25, 3, NULL, '{\DlgTitleBold}Instalacao Concluida com Sucesso!', 'Subtitle', NULL)"
-ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ExitDialog', 'Subtitle', 'Text', 20, 65, 330, 95, 3, NULL, 'O DupFinder-Neo v1.0 (by @heitorsecurity) foi instalado com sucesso no seu computador![~][~]Foram criados atalhos na Area de Trabalho e no Menu Iniciar (DupFinder-Neo, Readme.txt e Desinstalar).[~][~]Clique em Concluir para finalizar.', 'Finish', NULL)"
+ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ExitDialog', 'Subtitle', 'Text', 20, 65, 330, 95, 3, NULL, 'O DupFinder-Neo v1.0 (by @heitorsecurity) foi instalado com sucesso no seu computador![~][~]Foram criados atalhos na Area de Trabalho e no Menu Iniciar (DupFinder-Neo, Readme.txt e Desinstalar).[~][~]Clique em Concluir para finalizar.', 'BottomLine', NULL)"
 ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ExitDialog', 'BottomLine', 'Line', 0, 234, 370, 0, 1, NULL, NULL, 'Finish', NULL)"
-ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ExitDialog', 'Finish', 'PushButton', 236, 243, 56, 17, 3, NULL, '&Concluir', 'Finish', NULL)"
+ExecSql $db "INSERT INTO Control (Dialog_, Control, Type, X, Y, Width, Height, Attributes, Property, Text, Control_Next, Help) VALUES ('ExitDialog', 'Finish', 'PushButton', 236, 243, 56, 17, 3, NULL, '&Concluir', 'Title', NULL)"
+
+# EventMapping table: Links ProgressBar to installer engine progress events
+ExecSql $db "CREATE TABLE EventMapping (Dialog_ CHAR(72) NOT NULL, Control_ CHAR(72) NOT NULL, Event CHAR(72) NOT NULL, Attribute CHAR(72) NOT NULL PRIMARY KEY Dialog_, Control_, Event)"
+ExecSql $db "INSERT INTO EventMapping (Dialog_, Control_, Event, Attribute) VALUES ('ProgressDlg', 'ProgressBar', 'SetProgress', 'Progress')"
 
 # ControlEvent table: Wiring buttons and dialog transitions
 ExecSql $db "CREATE TABLE ControlEvent (Dialog_ CHAR(72) NOT NULL, Control_ CHAR(72) NOT NULL, Event CHAR(72) NOT NULL, Argument CHAR(255) NOT NULL, Condition CHAR(255), Ordering SHORT NOT NULL PRIMARY KEY Dialog_, Control_, Event, Argument, Condition)"
 
 # WelcomeDlg Events
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('WelcomeDlg', 'Next', 'NewDialog', 'LicenseAgreementDlg', NULL, 1)"
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('WelcomeDlg', 'Cancel', 'EndDialog', 'Exit', NULL, 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('WelcomeDlg', 'Next', 'NewDialog', 'LicenseAgreementDlg', '1', 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('WelcomeDlg', 'Cancel', 'EndDialog', 'Exit', '1', 1)"
 
 # LicenseAgreementDlg Events
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('LicenseAgreementDlg', 'Back', 'NewDialog', 'WelcomeDlg', NULL, 1)"
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('LicenseAgreementDlg', 'Next', 'NewDialog', 'InstallDirDlg', NULL, 1)"
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('LicenseAgreementDlg', 'Cancel', 'EndDialog', 'Exit', NULL, 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('LicenseAgreementDlg', 'Back', 'NewDialog', 'WelcomeDlg', '1', 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('LicenseAgreementDlg', 'Next', 'NewDialog', 'InstallDirDlg', '1', 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('LicenseAgreementDlg', 'Cancel', 'EndDialog', 'Exit', '1', 1)"
 
 # InstallDirDlg Events
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('InstallDirDlg', 'Back', 'NewDialog', 'LicenseAgreementDlg', NULL, 1)"
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('InstallDirDlg', 'Next', 'SetTargetPath', 'INSTALLDIR', NULL, 1)"
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('InstallDirDlg', 'Next', 'NewDialog', 'VerifyReadyDlg', NULL, 2)"
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('InstallDirDlg', 'Cancel', 'EndDialog', 'Exit', NULL, 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('InstallDirDlg', 'Back', 'NewDialog', 'LicenseAgreementDlg', '1', 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('InstallDirDlg', 'Next', 'SetTargetPath', 'INSTALLDIR', '1', 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('InstallDirDlg', 'Next', 'NewDialog', 'VerifyReadyDlg', '1', 2)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('InstallDirDlg', 'Cancel', 'EndDialog', 'Exit', '1', 1)"
 
 # VerifyReadyDlg Events
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('VerifyReadyDlg', 'Back', 'NewDialog', 'InstallDirDlg', NULL, 1)"
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('VerifyReadyDlg', 'Install', 'EndDialog', 'Return', NULL, 1)"
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('VerifyReadyDlg', 'Cancel', 'EndDialog', 'Exit', NULL, 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('VerifyReadyDlg', 'Back', 'NewDialog', 'InstallDirDlg', '1', 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('VerifyReadyDlg', 'Install', 'EndDialog', 'Return', '1', 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('VerifyReadyDlg', 'Cancel', 'EndDialog', 'Exit', '1', 1)"
 
 # ProgressDlg Events
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('ProgressDlg', 'Cancel', 'EndDialog', 'Exit', NULL, 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('ProgressDlg', 'Cancel', 'EndDialog', 'Exit', '1', 1)"
 
 # ExitDialog Events
-ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('ExitDialog', 'Finish', 'EndDialog', 'Exit', NULL, 1)"
+ExecSql $db "INSERT INTO ControlEvent (Dialog_, Control_, Event, Argument, Condition, Ordering) VALUES ('ExitDialog', 'Finish', 'EndDialog', 'Exit', '1', 1)"
 
 # 11. Sequences: Execution & UI Flow
 ExecSql $db "CREATE TABLE InstallExecuteSequence (Action CHAR(72) NOT NULL, Condition CHAR(255), Sequence SHORT PRIMARY KEY Action)"

@@ -138,6 +138,36 @@
           <li>Execucao de teste de interface via <code>msiexec /i dupfinder-neo.msi /l*v msi_ui_test.log</code> confirmando inicializacao com sucesso da janela <code>WelcomeDlg</code>, carregamento dos estilos de texto <code>DlgTitleBold</code> e <code>DlgFont8</code>, navegacao entre telas e fluxo completo de instalacao sem travamentos silenciosos.</li>
         </ul>
       </section>
+
+      <section>
+        <h3>2026-10-12 - Correcao dos Erros 2810 e 2874 na Estrutura de Controles e Fontes do Windows Installer (MSI)</h3>
+        <p><strong>Evidence level:</strong> Current source/config, Execution log, Runtime/data artifact.</p>
+
+        <h4>Fixed</h4>
+        <ul>
+          <li>Corrigido o Erro 2810 (<code>In the dialog [2] the following control pointers do not form a cycle</code>): a coluna <code>Control_Next</code> continha apontamentos duplicados e subciclos isolados em vez de um ciclo unico e fechado. Cada dialogo (<code>WelcomeDlg</code>, <code>LicenseAgreementDlg</code>, <code>InstallDirDlg</code>, <code>VerifyReadyDlg</code>, <code>ProgressDlg</code> e <code>ExitDialog</code>) foi reorganizado para que seus controles formem um loop continuo fechado contendo exatamente todos os elementos da janela.</li>
+          <li>Corrigido o Erro 2874 (<code>Changing the text font to DlgTitleBold failed</code>): a coluna na tabela <code>TextStyle</code> estava incorretamente nomeada como <code>FontFamily</code> em vez da coluna oficial da API do Windows Installer (<code>FaceName</code>), gerando falha 2235 e erro 2874 ao tentar aplicar negrito ao titulo.</li>
+          <li>Ajustado atributo de janela do <code>ProgressDlg</code> para modelo modeless (<code>Attributes = 1</code>) para impedir bloqueio de execucao do motor durante a acao <code>ExecuteAction</code>.</li>
+        </ul>
+
+        <h4>Included</h4>
+        <ul>
+          <li>Adicionada a tabela <code>EventMapping</code> vinculando o evento <code>SetProgress</code> ao atributo <code>Progress</code> da barra <code>ProgressBar</code> no <code>ProgressDlg</code> para suporte a atualizacao grafica dinamica nativa.</li>
+          <li>Adicionada a propriedade <code>INSTALLDIR</code> na tabela <code>Property</code> com caminho inicial valido de volume e pasta (<code>C:\Program Files\DupFinder-Neo</code>) para correta inicializacao do controle <code>PathEdit</code>.</li>
+        </ul>
+
+        <h4>Changed</h4>
+        <ul>
+          <li><code>build-msi.ps1</code>: Atualizado com as correcoes de ciclo de controles, esquema de <code>TextStyle</code> (<code>FaceName</code>), tabela <code>EventMapping</code> e condicoes estaveis em <code>ControlEvent</code>.</li>
+          <li><code>dupfinder-neo.msi</code>: Recompilado e validado.</li>
+        </ul>
+
+        <h4>Validation</h4>
+        <ul>
+          <li>Validacao topologica automatizada de grafos de controle via PowerShell confirmando ciclo integro e completo (100% de cobertura de controles) em todos os dialogos.</li>
+          <li>Execucao em tempo real via <code>msiexec.exe /i dupfinder-neo.msi</code> com inspecao de log detalhado (verbose log) confirmando resolucao completa dos erros 2810 e 2874 e abertura estavel da tela de boas-vindas com fontes formatadas.</li>
+        </ul>
+      </section>
     </main>
 
     <aside class="toc" aria-label="Sumario">
@@ -145,6 +175,7 @@
       <a href="#conteudo">Inicio</a>
       <a href="#2026-10-12---modernizacao-do-motor-deteccao-de-pastas-em-comum-pastas-vazias-instaladores-windows-e-especificacao-sot" data-level="3">2026-10-12: Modernizacao</a>
       <a href="#2026-10-12---implementacao-de-interface-grafica-nativa-wizard-dialogs-e-atualizacao-limpa-no-pacote-windows-installer-msi" data-level="3">2026-10-12: UI Nativa MSI</a>
+      <a href="#2026-10-12---correcao-dos-erros-2810-e-2874-na-estrutura-de-controles-e-fontes-do-windows-installer-msi" data-level="3">2026-10-12: Correcao Erros 2810/2874</a>
     </aside>
   </div>
   <footer class="footer">
