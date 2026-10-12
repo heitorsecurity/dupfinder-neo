@@ -115,12 +115,36 @@
           <li>Compactacao e integridade validadas de <code>dupfinder-neo-sourcecode-sot.zip</code> (7.928 bytes).</li>
         </ul>
       </section>
+
+      <section>
+        <h3>2026-10-12 - Implementacao de Interface Grafica Nativa (Wizard Dialogs) e Atualizacao Limpa no Pacote Windows Installer (MSI)</h3>
+        <p><strong>Evidence level:</strong> Current source/config, Execution log, Runtime/data artifact.</p>
+
+        <h4>Fixed</h4>
+        <ul>
+          <li>Corrigida a ausencia de janelas interativas com fluxo de avancar/voltar (&quot;Next&quot; / &quot;Back&quot;) ao abrir diretamente o arquivo <code>dupfinder-neo.msi</code>. A causa-raiz era a ausencia das tabelas nativas de UI do Windows Installer (<code>Dialog</code>, <code>Control</code>, <code>ControlEvent</code>, <code>TextStyle</code>) e o uso de <code>ProductCode</code> estatico no pacote anterior.</li>
+        </ul>
+
+        <h4>Changed</h4>
+        <ul>
+          <li><code>build-msi.ps1</code>: Implementacao completa do subsistema nativo de dialogos do Windows Installer via tabelas COM: <code>WelcomeDlg</code> (Boas-vindas ao DupFinder-Neo v1.0 by @heitorsecurity), <code>LicenseAgreementDlg</code> (Exibicao dos termos GPL v2 com creditos), <code>InstallDirDlg</code> (Selecao e personalizacao do diretorio de destino <code>INSTALLDIR</code>), <code>VerifyReadyDlg</code> (Confirmacao antes de instalar), <code>ProgressDlg</code> (Barra de progresso de instalacao) e <code>ExitDialog</code> (Conclusao com sucesso).</li>
+          <li><code>build-msi.ps1</code>: Configuracao do sequenciamento em <code>InstallUISequence</code> com <code>CostInitialize</code>, <code>FileCost</code>, <code>CostFinalize</code>, <code>WelcomeDlg</code> (condicao <code>NOT Installed</code>), <code>ProgressDlg</code>, <code>ExecuteAction</code> e <code>ExitDialog</code>.</li>
+          <li><code>build-msi.ps1</code>: Geracao automatica de novo GUID para <code>ProductCode</code> e <code>PackageCode</code> a cada build, mantendo o <code>UpgradeCode</code> compartilhado fixo para acionar desinstalacao/substituicao automatica limpa (via <code>RemoveExistingProducts</code>) de versoes anteriores ao reinstalar com o mesmo MSI.</li>
+          <li><code>dupfinder-neo.msi</code>: Recompilado e validado contendo toda a arvore de UI nativa e logica de upgrade/reinstalacao limpa.</li>
+        </ul>
+
+        <h4>Validation</h4>
+        <ul>
+          <li>Execucao de teste de interface via <code>msiexec /i dupfinder-neo.msi /l*v msi_ui_test.log</code> confirmando inicializacao com sucesso da janela <code>WelcomeDlg</code>, carregamento dos estilos de texto <code>DlgTitleBold</code> e <code>DlgFont8</code>, navegacao entre telas e fluxo completo de instalacao sem travamentos silenciosos.</li>
+        </ul>
+      </section>
     </main>
 
     <aside class="toc" aria-label="Sumario">
       <strong>Sumario</strong>
       <a href="#conteudo">Inicio</a>
       <a href="#2026-10-12---modernizacao-do-motor-deteccao-de-pastas-em-comum-pastas-vazias-instaladores-windows-e-especificacao-sot" data-level="3">2026-10-12: Modernizacao</a>
+      <a href="#2026-10-12---implementacao-de-interface-grafica-nativa-wizard-dialogs-e-atualizacao-limpa-no-pacote-windows-installer-msi" data-level="3">2026-10-12: UI Nativa MSI</a>
     </aside>
   </div>
   <footer class="footer">
