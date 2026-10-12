@@ -168,6 +168,36 @@
           <li>Execucao em tempo real via <code>msiexec.exe /i dupfinder-neo.msi</code> com inspecao de log detalhado (verbose log) confirmando resolucao completa dos erros 2810 e 2874 e abertura estavel da tela de boas-vindas com fontes formatadas.</li>
         </ul>
       </section>
+
+      <section>
+        <h3>2026-10-12 - Implementacao de Selecao de Escopo de Usuarios, Monitor Watcher Opcional e Atalhos no Assistente MSI</h3>
+        <p><strong>Evidence level:</strong> Current source/config, Execution log, Runtime/data artifact.</p>
+
+        <h4>Included</h4>
+        <ul>
+          <li>Adicionado o dialogo nativo <code>CustomizeDlg</code> ao fluxo do assistente MSI com 14 controles interativos:
+            <ol>
+              <li>Selecao de escopo de usuarios via <code>RadioButtonGroup</code> (propriedade <code>INSTALLSCOPE</code> / <code>ALLUSERS</code>): &quot;Todos os usuarios deste computador (Recomendado)&quot; ou &quot;Apenas para o usuario atual&quot;.</li>
+              <li>Opcao do monitor em segundo plano via <code>CheckBox</code> (propriedade <code>INSTALLWATCHER</code>): &quot;Instalar Monitor em Tempo Real (dupfinder-watcher.exe)&quot; com texto descritivo detalhando a monitorizacao em tempo real estilo Everything (voidtools) e emissao de alertas no Windows.</li>
+              <li>Opcoes de atalhos de sistema via <code>CheckBox</code>: &quot;Criar atalho na Area de Trabalho (Desktop)&quot; (propriedade <code>INSTALLDESKTOPSHORTCUT</code>) e &quot;Criar atalhos no Menu Iniciar (Programas)&quot; (propriedade <code>INSTALLMENUSHORTCUT</code>).</li>
+            </ol>
+          </li>
+          <li>Adicionadas as tabelas <code>RadioButton</code>, <code>CheckBox</code> e <code>Registry</code> no banco MSI para controle declarativo dos estados e KeyPaths de componentes condicionais.</li>
+          <li>Criados componentes condicionais <code>C_DeskShort</code>, <code>C_MenuShort</code> e <code>C_Watcher</code> (com condicoes <code>INSTALLDESKTOPSHORTCUT = 1</code>, <code>INSTALLMENUSHORTCUT = 1</code> e <code>INSTALLWATCHER = 1</code>) associados a feature <code>Complete</code>.</li>
+        </ul>
+
+        <h4>Changed</h4>
+        <ul>
+          <li><code>build-msi.ps1</code>: Atualizado o encadeamento de janelas para <code>WelcomeDlg</code> &rarr; <code>LicenseAgreementDlg</code> &rarr; <code>InstallDirDlg</code> &rarr; <code>CustomizeDlg</code> &rarr; <code>VerifyReadyDlg</code> &rarr; <code>ProgressDlg</code> &rarr; <code>ExitDialog</code>, com navegacao bidirecional e eventos condicionais de atribuicao de propriedades em <code>ControlEvent</code>.</li>
+          <li><code>dupfinder-neo.msi</code>: Recompilado e validado.</li>
+        </ul>
+
+        <h4>Validation</h4>
+        <ul>
+          <li>Validacao topologica automatizada via PowerShell confirmando ciclos fechados em 100% dos controles em todas as 7 janelas (incluindo todos os 14 controles do <code>CustomizeDlg</code>).</li>
+          <li>Execucao em tempo real via <code>msiexec.exe /i dupfinder-neo.msi /l*v</code> confirmando resolucao de dependencias de componentes, integracao com <code>Registry</code> e execucao sem erros.</li>
+        </ul>
+      </section>
     </main>
 
     <aside class="toc" aria-label="Sumario">
@@ -176,6 +206,7 @@
       <a href="#2026-10-12---modernizacao-do-motor-deteccao-de-pastas-em-comum-pastas-vazias-instaladores-windows-e-especificacao-sot" data-level="3">2026-10-12: Modernizacao</a>
       <a href="#2026-10-12---implementacao-de-interface-grafica-nativa-wizard-dialogs-e-atualizacao-limpa-no-pacote-windows-installer-msi" data-level="3">2026-10-12: UI Nativa MSI</a>
       <a href="#2026-10-12---correcao-dos-erros-2810-e-2874-na-estrutura-de-controles-e-fontes-do-windows-installer-msi" data-level="3">2026-10-12: Correcao Erros 2810/2874</a>
+      <a href="#2026-10-12---implementacao-de-selecao-de-escopo-de-usuarios-monitor-watcher-opcional-e-atalhos-no-assistente-msi" data-level="3">2026-10-12: Opcoes de Instalacao no MSI</a>
     </aside>
   </div>
   <footer class="footer">
