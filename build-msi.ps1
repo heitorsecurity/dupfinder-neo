@@ -75,6 +75,12 @@ ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('ProductLanguage', '
 ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('UpgradeCode', '{F89D4321-B765-4321-BEEF-9876543210FE}')"
 ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('ALLUSERS', '1')"
 ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('DiskPrompt', 'DupFinder-Neo $appDisplayVersion Installation [1]')"
+ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('REINSTALLMODE', 'amus')"
+ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('MSIRESTARTMANAGERCONTROL', 'Disable')"
+
+# Upgrade Table for Clean Reinstallation and Automatic Removal of Previous Versions
+ExecSql $db "CREATE TABLE Upgrade (UpgradeCode CHAR(38) NOT NULL, VersionMin CHAR(20), VersionMax CHAR(20), Language CHAR(30), Attributes LONG NOT NULL, Remove CHAR(255), ActionProperty CHAR(72) NOT NULL PRIMARY KEY UpgradeCode, VersionMin, VersionMax, Language, Attributes)"
+ExecSql $db "INSERT INTO Upgrade (UpgradeCode, VersionMin, VersionMax, Language, Attributes, Remove, ActionProperty) VALUES ('{F89D4321-B765-4321-BEEF-9876543210FE}', NULL, '99.0.0', NULL, 256, NULL, 'PREVIOUSVERSIONSINSTALLED')"
 
 # 2. Directory
 ExecSql $db "CREATE TABLE Directory (Directory CHAR(72) NOT NULL, Directory_Parent CHAR(72), DefaultDir CHAR(255) NOT NULL PRIMARY KEY Directory)"
@@ -137,10 +143,12 @@ ExecSql $db "INSERT INTO CustomAction (Action, Type, Source, Target) VALUES ('La
 
 # 11. Sequences
 ExecSql $db "CREATE TABLE InstallExecuteSequence (Action CHAR(72) NOT NULL, Condition CHAR(255), Sequence SHORT PRIMARY KEY Action)"
+ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('FindRelatedProducts', NULL, 200)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('CostInitialize', NULL, 800)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('FileCost', NULL, 900)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('CostFinalize', NULL, 1000)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('InstallValidate', NULL, 1400)"
+ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('RemoveExistingProducts', 'PREVIOUSVERSIONSINSTALLED', 1450)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('InstallInitialize', NULL, 1500)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('ProcessComponents', NULL, 1600)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('UnpublishComponents', NULL, 1700)"
@@ -155,7 +163,8 @@ ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VA
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('InstallFinalize', NULL, 6600)"
 
 ExecSql $db "CREATE TABLE InstallUISequence (Action CHAR(72) NOT NULL, Condition CHAR(255), Sequence SHORT PRIMARY KEY Action)"
-ExecSql $db "INSERT INTO InstallUISequence (Action, Condition, Sequence) VALUES ('LaunchWizardUI', NULL, 1)"
+ExecSql $db "INSERT INTO InstallUISequence (Action, Condition, Sequence) VALUES ('FindRelatedProducts', NULL, 200)"
+ExecSql $db "INSERT INTO InstallUISequence (Action, Condition, Sequence) VALUES ('LaunchWizardUI', NULL, 201)"
 
 ExecSql $db "CREATE TABLE AdminExecuteSequence (Action CHAR(72) NOT NULL, Condition CHAR(255), Sequence SHORT PRIMARY KEY Action)"
 ExecSql $db "INSERT INTO AdminExecuteSequence (Action, Condition, Sequence) VALUES ('CostInitialize', NULL, 800)"

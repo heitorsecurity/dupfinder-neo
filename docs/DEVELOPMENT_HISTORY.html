@@ -99,6 +99,7 @@
           <li>Implementada rotina de desinstalacao limpa que encerra processos do monitor, remove autostart no registro, remove atalhos do Desktop e Menu Iniciar, exclui arquivos instalados e remove residuos do computador.</li>
           <li>Padronizado o nome e versionamento em todo o projeto para <code>DupFinder-Neo v1.0 (by @heitorsecurity)</code>, com politica de avanco incremental (v1.0 -> v1.1 -> v1.2).</li>
           <li>Rebuildado <code>dupfinder-neo.msi</code> versao 1.0.0 com os 5 arquivos de distribuicao, acao customizada do assistente e atalhos completos no Menu Iniciar.</li>
+          <li>Implementado suporte completo a reinstalacao/atualizacao no <code>build-msi.ps1</code> e <code>dupfinder-neo-setup.exe</code>: inclusao da tabela <code>Upgrade</code>, acoes <code>FindRelatedProducts</code> e <code>RemoveExistingProducts</code>, definicao de <code>REINSTALLMODE=amus</code> e deteccao de instalacao existente no registro para apagar/sobrescrever componentes antigos sem conflitos ou erros.</li>
 
         <h4>Data/Compatibility</h4>
         <ul>

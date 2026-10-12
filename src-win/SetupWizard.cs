@@ -121,10 +121,35 @@ namespace DupFinderNeoSetup
         // Controls in Step 5 (Finish)
         private CheckBox cbLaunchAfter;
 
+        private string previousInstallDir = null;
+        private string previousVersion = null;
+
         public SetupForm()
         {
+            CheckExistingInstallation();
             InitializeComponent();
             ShowStep(0);
+        }
+
+        private void CheckExistingInstallation()
+        {
+            try
+            {
+                RegistryKey[] roots = new RegistryKey[] { Registry.LocalMachine, Registry.CurrentUser };
+                foreach (var root in roots)
+                {
+                    using (var key = root.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\DupFinder-Neo"))
+                    {
+                        if (key != null)
+                        {
+                            previousInstallDir = key.GetValue("InstallLocation") as string;
+                            previousVersion = key.GetValue("DisplayVersion") as string;
+                            if (!string.IsNullOrEmpty(previousInstallDir)) break;
+                        }
+                    }
+                }
+            }
+            catch { }
         }
 
         private void InitializeComponent()
@@ -221,6 +246,22 @@ namespace DupFinderNeoSetup
             };
 
             pnlWelcome.Controls.AddRange(new Control[] { lblTitle, lblDesc });
+
+            if (!string.IsNullOrEmpty(previousInstallDir))
+            {
+                Label lblReinstall = new Label()
+                {
+                    Text = "ℹ️ Versao anterior (" + (previousVersion ?? "v1.0") + ") detectada em:\r\n" +
+                           previousInstallDir + "\r\n" +
+                           "O assistente ira atualizar e sobrescrever os arquivos existentes de forma limpa.",
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                    ForeColor = Color.DarkSlateBlue,
+                    Location = new Point(2, 185),
+                    Size = new Size(580, 55)
+                };
+                pnlWelcome.Controls.Add(lblReinstall);
+            }
+
             pnlContent.Controls.Add(pnlWelcome);
         }
 
@@ -315,9 +356,10 @@ namespace DupFinderNeoSetup
             if (string.IsNullOrEmpty(progFiles)) progFiles = @"C:\Program Files";
             string defaultAll = Path.Combine(progFiles, "DupFinder-Neo");
 
+            string initialPath = !string.IsNullOrEmpty(previousInstallDir) ? previousInstallDir : defaultAll;
             txtInstallPath = new TextBox()
             {
-                Text = defaultAll,
+                Text = initialPath,
                 Location = new Point(2, 120),
                 Width = 475
             };
@@ -565,13 +607,36 @@ namespace DupFinderNeoSetup
                 string targetDir = txtInstallPath.Text;
                 string sourceDir = AppDomain.CurrentDomain.BaseDirectory;
 
-                UpdateProgress(10, "Criando pasta de instalacao...");
-                try { if (!Directory.Exists(targetDir)) Directory.CreateDirectory(targetDir); } catch { }
+                UpdateProgress(10, "Finalizando processos anteriores para atualizacao limpa...");
+                StopAllDupFinderProcesses();
 
-                // Stop any running instances first
-                WatcherProgram_StopWatchers();
+                UpdateProgress(18, "Removendo arquivos da versao anterior para substituicao limpa...");
+                string[] filesToClean = new string[] { "dupfinder-neo.exe", "dupfinder-watcher.exe", "readme.txt", "LICENSE.TXT" };
+                if (Directory.Exists(targetDir))
+                {
+                    foreach (var f in filesToClean)
+                    {
+                        string p = Path.Combine(targetDir, f);
+                        try { if (File.Exists(p)) File.Delete(p); } catch { }
+                    }
+                }
+                else
+                {
+                    try { Directory.CreateDirectory(targetDir); } catch { }
+                }
 
-                UpdateProgress(25, "Copiando executaveis do DupFinder-Neo...");
+                if (!string.IsNullOrEmpty(previousInstallDir) &&
+                    !string.Equals(previousInstallDir, targetDir, StringComparison.OrdinalIgnoreCase) &&
+                    Directory.Exists(previousInstallDir))
+                {
+                    foreach (var f in filesToClean)
+                    {
+                        string p = Path.Combine(previousInstallDir, f);
+                        try { if (File.Exists(p)) File.Delete(p); } catch { }
+                    }
+                }
+
+                UpdateProgress(30, "Copiando executaveis do DupFinder-Neo v1.0...");
                 CopyFileSafe(sourceDir, targetDir, "dupfinder-neo.exe");
                 CopyFileSafe(sourceDir, targetDir, "dupfinder-watcher.exe");
 
@@ -673,12 +738,15 @@ namespace DupFinderNeoSetup
             }
         }
 
-        private void WatcherProgram_StopWatchers()
+        private void StopAllDupFinderProcesses()
         {
             try
             {
-                Process[] procs = Process.GetProcessesByName("dupfinder-watcher");
-                foreach (var p in procs) { try { p.Kill(); } catch { } }
+                Process[] watchProcs = Process.GetProcessesByName("dupfinder-watcher");
+                foreach (var p in watchProcs) { try { p.Kill(); } catch { } }
+
+                Process[] mainProcs = Process.GetProcessesByName("dupfinder-neo");
+                foreach (var p in mainProcs) { try { p.Kill(); } catch { } }
             }
             catch { }
         }
