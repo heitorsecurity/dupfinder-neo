@@ -13,17 +13,18 @@ $exeFile = Join-Path $scriptDir "dupfinder-neo.exe"
 $readmeFile = Join-Path $scriptDir "readme.txt"
 $licenseFile = Join-Path $scriptDir "LICENSE.TXT"
 
-# Prepare CAB DDF file
+# Prepare CAB DDF file with internal names matching the File table primary keys
 $ddfContent = @"
 .Set CabinetNameTemplate=data.cab
 .Set DiskDirectoryTemplate=$scriptDir
 .Set CompressionType=MSZIP
 .Set Cabinet=ON
 .Set Compress=ON
-"$exeFile" dupfneo.exe
-"$readmeFile" readme.txt
-"$licenseFile" license.txt
+"$exeFile" F_Exe
+"$readmeFile" F_Readme
+"$licenseFile" F_License
 "@
+
 
 $ddfPath = Join-Path $scriptDir "cabinet.ddf"
 [System.IO.File]::WriteAllText($ddfPath, $ddfContent)
@@ -63,7 +64,7 @@ ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('DiskPrompt', 'DupFi
 ExecSql $db "CREATE TABLE Directory (Directory CHAR(72) NOT NULL, Directory_Parent CHAR(72), DefaultDir CHAR(255) NOT NULL PRIMARY KEY Directory)"
 ExecSql $db "INSERT INTO Directory (Directory, Directory_Parent, DefaultDir) VALUES ('TARGETDIR', NULL, 'SourceDir')"
 ExecSql $db "INSERT INTO Directory (Directory, Directory_Parent, DefaultDir) VALUES ('ProgramFilesFolder', 'TARGETDIR', '.')"
-ExecSql $db "INSERT INTO Directory (Directory, Directory_Parent, DefaultDir) VALUES ('INSTALLDIR', 'ProgramFilesFolder', 'DupFinder-Neo')"
+ExecSql $db "INSERT INTO Directory (Directory, Directory_Parent, DefaultDir) VALUES ('INSTALLDIR', 'ProgramFilesFolder', 'DUPFIN~1|DupFinder-Neo')"
 ExecSql $db "INSERT INTO Directory (Directory, Directory_Parent, DefaultDir) VALUES ('ProgramMenuFolder', 'TARGETDIR', '.')"
 ExecSql $db "INSERT INTO Directory (Directory, Directory_Parent, DefaultDir) VALUES ('DesktopFolder', 'TARGETDIR', '.')"
 
@@ -93,8 +94,8 @@ ExecSql $db "INSERT INTO FeatureComponents (Feature_, Component_) VALUES ('Compl
 
 # 8. Shortcut
 ExecSql $db "CREATE TABLE Shortcut (Shortcut CHAR(72) NOT NULL, Directory_ CHAR(72) NOT NULL, Name CHAR(128) NOT NULL, Component_ CHAR(72) NOT NULL, Target CHAR(72) NOT NULL, Arguments CHAR(255), Description CHAR(255), Hotkey SHORT, Icon_ CHAR(72), IconIndex SHORT, ShowCmd SHORT, WkDir CHAR(72) PRIMARY KEY Shortcut)"
-ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_Menu', 'ProgramMenuFolder', 'DupFinder-Neo', 'C_Exe', '[#F_Exe]', NULL, 'Localizador de Arquivos Duplicados e Pastas Vazias', NULL, NULL, NULL, 1, 'INSTALLDIR')"
-ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_Desk', 'DesktopFolder', 'DupFinder-Neo', 'C_Exe', '[#F_Exe]', NULL, 'Localizador de Arquivos Duplicados e Pastas Vazias', NULL, NULL, NULL, 1, 'INSTALLDIR')"
+ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_Menu', 'ProgramMenuFolder', 'DUPFIN~1|DupFinder-Neo', 'C_Exe', '[#F_Exe]', NULL, 'Localizador de Arquivos Duplicados e Pastas Vazias', NULL, NULL, NULL, 1, 'INSTALLDIR')"
+ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_Desk', 'DesktopFolder', 'DUPFIN~1|DupFinder-Neo', 'C_Exe', '[#F_Exe]', NULL, 'Localizador de Arquivos Duplicados e Pastas Vazias', NULL, NULL, NULL, 1, 'INSTALLDIR')"
 
 # 9. Sequences
 ExecSql $db "CREATE TABLE InstallExecuteSequence (Action CHAR(72) NOT NULL, Condition CHAR(255), Sequence SHORT PRIMARY KEY Action)"
@@ -104,13 +105,22 @@ ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VA
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('InstallValidate', NULL, 1400)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('InstallInitialize', NULL, 1500)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('ProcessComponents', NULL, 1600)"
+ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('UnpublishComponents', NULL, 1700)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('UnpublishFeatures', NULL, 1800)"
+ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('RemoveShortcuts', NULL, 3200)"
+ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('RemoveFiles', NULL, 3500)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('InstallFiles', NULL, 4000)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('CreateShortcuts', NULL, 4500)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('RegisterProduct', NULL, 6100)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('PublishFeatures', NULL, 6300)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('PublishProduct', NULL, 6400)"
 ExecSql $db "INSERT INTO InstallExecuteSequence (Action, Condition, Sequence) VALUES ('InstallFinalize', NULL, 6600)"
+
+ExecSql $db "CREATE TABLE InstallUISequence (Action CHAR(72) NOT NULL, Condition CHAR(255), Sequence SHORT PRIMARY KEY Action)"
+ExecSql $db "INSERT INTO InstallUISequence (Action, Condition, Sequence) VALUES ('CostInitialize', NULL, 800)"
+ExecSql $db "INSERT INTO InstallUISequence (Action, Condition, Sequence) VALUES ('FileCost', NULL, 900)"
+ExecSql $db "INSERT INTO InstallUISequence (Action, Condition, Sequence) VALUES ('CostFinalize', NULL, 1000)"
+ExecSql $db "INSERT INTO InstallUISequence (Action, Condition, Sequence) VALUES ('ExecuteAction', NULL, 1300)"
 
 ExecSql $db "CREATE TABLE AdminExecuteSequence (Action CHAR(72) NOT NULL, Condition CHAR(255), Sequence SHORT PRIMARY KEY Action)"
 ExecSql $db "INSERT INTO AdminExecuteSequence (Action, Condition, Sequence) VALUES ('CostInitialize', NULL, 800)"
@@ -136,12 +146,18 @@ $summary.Property(4) = "DupFinder Neo Project"      # Author
 $summary.Property(7) = "Intel;1033"                 # Platform;Language
 $summary.Property(9) = "{B76C1234-A890-4DEF-9102-1234567890AB}" # Package Code
 $summary.Property(14) = 200                         # Schema (2.0)
-$summary.Property(15) = 0                           # Security
+$summary.Property(15) = 2                           # WordCount: Bit 1 set = source compressed in cabinet
+$summary.Property(19) = 0                           # Security
 $summary.Persist()
 
 $db.Commit()
 
-# Cleanup temporary CAB
-Remove-Item $cabFile -Force
+# Cleanup temporary CAB and makecab reports
+Remove-Item $cabFile -Force -ErrorAction SilentlyContinue
+$infFile = Join-Path $scriptDir "setup.inf"
+$rptFile = Join-Path $scriptDir "setup.rpt"
+if (Test-Path $infFile) { Remove-Item $infFile -Force }
+if (Test-Path $rptFile) { Remove-Item $rptFile -Force }
 
 Write-Host "MSI gerado com sucesso: $msiFile"
+

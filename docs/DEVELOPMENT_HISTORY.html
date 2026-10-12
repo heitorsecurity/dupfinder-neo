@@ -91,6 +91,11 @@
           <li><code>stdinc.h</code>: Inclusao de containers STL modernos (<code>&lt;map&gt;</code>, <code>&lt;vector&gt;</code>).</li>
         </ul>
 
+        <h4>Fixed</h4>
+        <ul>
+          <li>Corrigido erro 1334 do Windows Installer (<code>The file 'F_Exe' cannot be found in cabinet file 'data.cab'</code>) no <code>build-msi.ps1</code> alinhando os identificadores internos do arquivo CAB com as chaves primarias da tabela <code>File</code> (<code>F_Exe</code>, <code>F_Readme</code>, <code>F_License</code>), adicionando sequencias de desinstalacao limpa e configurando <code>PID_WORDCOUNT</code>.</li>
+        </ul>
+
         <h4>Data/Compatibility</h4>
         <ul>
           <li>Compatibilidade garantida com todas as edicoes do Windows: Windows XP SP3, Windows Vista, Windows 7, Windows 8/8.1, Windows 10 e Windows 11.</li>

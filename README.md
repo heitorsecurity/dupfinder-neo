@@ -173,3 +173,4 @@ cargo build --release
 
 - **Código Original**: Patrick De Smet (GNU General Public License v2).
 - **DupFinder Neo**: Modernização de engine, algoritmos de pastas em comum, limpador de diretórios vazios, novas interfaces Windows XP-11, instaladores e arquitetura SOT em Rust.
+
