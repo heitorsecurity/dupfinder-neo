@@ -210,8 +210,9 @@ namespace DupFinderNeo
         public int ScannedFilesCount { get; private set; }
         public int ScannedDirsCount { get; private set; }
 
-        public event Action<string> OnStatusUpdate;
-        public event Action<int, int, string> OnProgressUpdate;
+        public Action<string> OnStatusUpdate;
+        public Action<int, int, string> OnProgressUpdate;
+        private int lastStatusTick = 0;
 
         public Engine()
         {
@@ -232,8 +233,10 @@ namespace DupFinderNeo
             FolderSuggestions.Clear();
             ScannedFilesCount = 0;
             ScannedDirsCount = 0;
+            lastStatusTick = 0;
 
             if (OnStatusUpdate != null) OnStatusUpdate("Iniciando varredura com o motor DupFinder-Neo v1.0...");
+            if (OnProgressUpdate != null) OnProgressUpdate(0, 0, "Indexando arquivos...");
 
             List<FileCandidate> allFiles = new List<FileCandidate>();
 
@@ -268,12 +271,15 @@ namespace DupFinderNeo
 
             if (Mode == ScanMode.EmptyDirsOnly)
             {
-                if (OnStatusUpdate != null) OnStatusUpdate("Varredura de pastas vazias concluida!");
+                if (OnStatusUpdate != null) OnStatusUpdate(string.Format("Varredura de pastas vazias concluida! {0:N0} pastas encontradas.", EmptyDirectories.Count));
+                if (OnProgressUpdate != null) OnProgressUpdate(100, 100, "100% Concluido");
                 return;
             }
 
             // Duplicates multi-stage pipeline
-            if (OnStatusUpdate != null) OnStatusUpdate("Filtrando candidatos por tamanho de arquivo exato...");
+            if (OnStatusUpdate != null) OnStatusUpdate(string.Format("Filtrando {0:N0} arquivos coletados por tamanho exato...", allFiles.Count));
+            if (OnProgressUpdate != null) OnProgressUpdate(0, 0, string.Format("Agrupando {0:N0} arquivos...", allFiles.Count));
+
             Dictionary<long, List<FileCandidate>> sizeGroups = new Dictionary<long, List<FileCandidate>>();
             foreach (var f in allFiles)
             {
@@ -291,7 +297,14 @@ namespace DupFinderNeo
                 }
             }
 
-            if (OnStatusUpdate != null) OnStatusUpdate(string.Format("Pre-hashing rapido (Prefix/Suffix) de {0:N0} arquivos...", candidateFiles.Count));
+            if (candidateFiles.Count == 0)
+            {
+                if (OnStatusUpdate != null) OnStatusUpdate(string.Format("Varredura concluida! {0:N0} arquivos varridos, nenhuma duplicata encontrada.", allFiles.Count));
+                if (OnProgressUpdate != null) OnProgressUpdate(100, 100, "100% Concluido");
+                return;
+            }
+
+            if (OnStatusUpdate != null) OnStatusUpdate(string.Format("Pre-hashing rapido (Prefix/Suffix) de {0:N0} arquivos candidatos...", candidateFiles.Count));
             int processed = 0;
             byte[] buffer = new byte[8192];
 
@@ -301,12 +314,12 @@ namespace DupFinderNeo
                 var f = candidateFiles[i];
                 f.SampleHash = ComputeSampleHash(f.FullPath, f.Size, buffer);
                 processed++;
-                if (processed % 40 == 0 || processed == candidateFiles.Count)
+                if (processed % 25 == 0 || processed == candidateFiles.Count)
                 {
                     if (OnProgressUpdate != null)
                     {
                         int pct = (int)((long)processed * 100 / candidateFiles.Count);
-                        string custom = string.Format("{0}% ({1:N0} / {2:N0})", pct, processed, candidateFiles.Count);
+                        string custom = string.Format("Pre-hash: {0}% ({1:N0} / {2:N0})", pct, processed, candidateFiles.Count);
                         OnProgressUpdate(processed, candidateFiles.Count, custom);
                     }
                 }
@@ -331,7 +344,14 @@ namespace DupFinderNeo
                 }
             }
 
-            if (OnStatusUpdate != null) OnStatusUpdate(string.Format("Validacao binaria rigorosa SHA-256 (100% acuracia) de {0:N0} arquivos...", hashCandidates.Count));
+            if (hashCandidates.Count == 0)
+            {
+                if (OnStatusUpdate != null) OnStatusUpdate("Varredura concluida: nenhuma duplicata confirmada apos pre-hash.");
+                if (OnProgressUpdate != null) OnProgressUpdate(100, 100, "100% Concluido");
+                return;
+            }
+
+            if (OnStatusUpdate != null) OnStatusUpdate(string.Format("Validacao binaria SHA-256 (100% acuracia) de {0:N0} arquivos...", hashCandidates.Count));
             processed = 0;
             using (SHA256 sha = SHA256.Create())
             {
@@ -346,7 +366,7 @@ namespace DupFinderNeo
                         if (OnProgressUpdate != null)
                         {
                             int pct = (int)((long)processed * 100 / hashCandidates.Count);
-                            string custom = string.Format("{0}% ({1:N0} / {2:N0})", pct, processed, hashCandidates.Count);
+                            string custom = string.Format("SHA-256: {0}% ({1:N0} / {2:N0})", pct, processed, hashCandidates.Count);
                             OnProgressUpdate(processed, hashCandidates.Count, custom);
                         }
                     }
@@ -383,7 +403,8 @@ namespace DupFinderNeo
             if (OnStatusUpdate != null) OnStatusUpdate("Analisando pastas em comum e gerando recomendacoes...");
             AnalyzeCommonFolders();
 
-            if (OnStatusUpdate != null) OnStatusUpdate("Busca finalizada com sucesso!");
+            if (OnStatusUpdate != null) OnStatusUpdate(string.Format("Busca finalizada! {0:N0} grupos de duplicatas identificados.", DuplicateGroups.Count));
+            if (OnProgressUpdate != null) OnProgressUpdate(100, 100, "100% Concluido");
         }
 
         private static ulong ComputeSampleHash(string path, long size, byte[] buf)
@@ -438,59 +459,129 @@ namespace DupFinderNeo
             try
             {
                 ScannedDirsCount++;
-                string[] dirFiles = Directory.GetFiles(dir);
-                foreach (var file in dirFiles)
-                {
-                    if (token.IsCancellationRequested) return;
-                    try
-                    {
-                        FileInfo fi = new FileInfo(file);
-                        if (!IncludeHidden && (fi.Attributes & FileAttributes.Hidden) != 0) continue;
 
-                        FileCandidate fc = new FileCandidate
-                        {
-                            FullPath = fi.FullName,
-                            FileName = fi.Name,
-                            DirectoryPath = fi.DirectoryName,
-                            Size = fi.Length,
-                            LastModified = fi.LastWriteTime
-                        };
-                        files.Add(fc);
-                        ScannedFilesCount++;
-                    }
-                    catch { }
+                int now = Environment.TickCount;
+                if (now - lastStatusTick >= 50 || lastStatusTick == 0)
+                {
+                    lastStatusTick = now;
+                    string shortDir = dir.Length > 55 ? "..." + dir.Substring(dir.Length - 52) : dir;
+                    if (OnStatusUpdate != null)
+                        OnStatusUpdate(string.Format("Lendo pasta: {0} ({1:N0} arqs, {2:N0} pastas)", shortDir, ScannedFilesCount, ScannedDirsCount));
+                    if (OnProgressUpdate != null)
+                        OnProgressUpdate(0, 0, string.Format("{0:N0} arquivos ({1:N0} pastas)", ScannedFilesCount, ScannedDirsCount));
                 }
 
-                if (Recursive)
+                // 1. Files in current dir
+                string[] dirFiles = null;
+                try { dirFiles = Directory.GetFiles(dir); } catch { }
+
+                if (dirFiles != null)
                 {
-                    string[] subDirs = Directory.GetDirectories(dir);
-                    foreach (var sub in subDirs)
+                    foreach (var file in dirFiles)
                     {
                         if (token.IsCancellationRequested) return;
-                        if (ProtectSystem && SystemSafety.IsSystemProtected(sub)) continue;
-                        ScanDirectoryRecursive(sub, files, token);
+                        try
+                        {
+                            FileInfo fi = new FileInfo(file);
+                            if (!IncludeHidden && (fi.Attributes & FileAttributes.Hidden) != 0) continue;
+
+                            FileCandidate fc = new FileCandidate
+                            {
+                                FullPath = fi.FullName,
+                                FileName = fi.Name,
+                                DirectoryPath = fi.DirectoryName,
+                                Size = fi.Length,
+                                LastModified = fi.LastWriteTime
+                            };
+                            files.Add(fc);
+                            ScannedFilesCount++;
+                        }
+                        catch { }
+                    }
+                }
+
+                // 2. Subdirectories in current dir
+                if (Recursive)
+                {
+                    string[] subDirs = null;
+                    try { subDirs = Directory.GetDirectories(dir); } catch { }
+
+                    if (subDirs != null)
+                    {
+                        foreach (var sub in subDirs)
+                        {
+                            if (token.IsCancellationRequested) return;
+                            try
+                            {
+                                DirectoryInfo di = new DirectoryInfo(sub);
+                                // Skip reparse points (symlinks, junctions) to prevent recursive loops like AppData\Local\Application Data
+                                if ((di.Attributes & FileAttributes.ReparsePoint) != 0) continue;
+                                if (ProtectSystem && SystemSafety.IsSystemProtected(sub)) continue;
+                                if (!IncludeHidden && (di.Attributes & FileAttributes.Hidden) != 0) continue;
+
+                                ScanDirectoryRecursive(sub, files, token);
+                            }
+                            catch { }
+                        }
                     }
                 }
             }
             catch { }
         }
 
-        private void FindEmptyDirectoriesRecursive(string dir, CancellationToken token)
+        private bool FindEmptyDirectoriesRecursive(string dir, CancellationToken token)
         {
-            if (token.IsCancellationRequested) return;
+            if (token.IsCancellationRequested) return false;
 
+            bool hasEntries = false;
             try
             {
-                string[] subDirs = Directory.GetDirectories(dir);
-                foreach (var sub in subDirs)
+                DirectoryInfo di = new DirectoryInfo(dir);
+                if ((di.Attributes & FileAttributes.ReparsePoint) != 0) return true;
+
+                int now = Environment.TickCount;
+                if (now - lastStatusTick >= 50)
                 {
-                    FindEmptyDirectoriesRecursive(sub, token);
+                    lastStatusTick = now;
+                    string shortDir = dir.Length > 55 ? "..." + dir.Substring(dir.Length - 52) : dir;
+                    if (OnStatusUpdate != null)
+                        OnStatusUpdate(string.Format("Verificando pastas vazias: {0} ({1:N0} encontradas)", shortDir, EmptyDirectories.Count));
+                    if (OnProgressUpdate != null)
+                        OnProgressUpdate(0, 0, string.Format("{0:N0} pastas vazias", EmptyDirectories.Count));
                 }
 
-                string[] currentSubDirs = Directory.GetDirectories(dir);
-                string[] currentFiles = Directory.GetFiles(dir);
+                string[] subDirs = null;
+                try { subDirs = Directory.GetDirectories(dir); } catch { }
+                if (subDirs != null)
+                {
+                    foreach (var sub in subDirs)
+                    {
+                        if (token.IsCancellationRequested) return false;
+                        try
+                        {
+                            DirectoryInfo subDi = new DirectoryInfo(sub);
+                            if ((subDi.Attributes & FileAttributes.ReparsePoint) != 0)
+                            {
+                                hasEntries = true;
+                                continue;
+                            }
+                            if (ProtectSystem && SystemSafety.IsSystemProtected(sub))
+                            {
+                                hasEntries = true;
+                                continue;
+                            }
+                            bool subHasEntries = FindEmptyDirectoriesRecursive(sub, token);
+                            if (subHasEntries) hasEntries = true;
+                        }
+                        catch { hasEntries = true; }
+                    }
+                }
 
-                if (currentSubDirs.Length == 0 && currentFiles.Length == 0)
+                string[] dirFiles = null;
+                try { dirFiles = Directory.GetFiles(dir); } catch { }
+                if (dirFiles != null && dirFiles.Length > 0) hasEntries = true;
+
+                if (!hasEntries)
                 {
                     EmptyDirectories.Add(new EmptyDirectoryInfo
                     {
@@ -500,7 +591,9 @@ namespace DupFinderNeo
                     });
                 }
             }
-            catch { }
+            catch { hasEntries = true; }
+
+            return hasEntries;
         }
 
         private void AnalyzeCommonFolders()
@@ -882,7 +975,7 @@ namespace DupFinderNeo
             mainLayout.Dock = DockStyle.Fill;
             mainLayout.RowCount = 4;
             mainLayout.ColumnCount = 1;
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 185)); // Top options
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 220)); // Top options
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Results
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));  // Actions
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));  // Status bar
@@ -897,9 +990,9 @@ namespace DupFinderNeo
             TableLayoutPanel configLayout = new TableLayoutPanel();
             configLayout.Dock = DockStyle.Fill;
             configLayout.ColumnCount = 3;
-            configLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52));
-            configLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 31));
-            configLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 17));
+            configLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 46));
+            configLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
+            configLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16));
             gbConfig.Controls.Add(configLayout);
 
             // Left: Paths List
@@ -934,13 +1027,16 @@ namespace DupFinderNeo
             FlowLayoutPanel pnlModes = new FlowLayoutPanel();
             pnlModes.Dock = DockStyle.Fill;
             pnlModes.FlowDirection = FlowDirection.TopDown;
+            pnlModes.WrapContents = false;
+            pnlModes.AutoScroll = false;
+            pnlModes.Padding = new Padding(6, 4, 6, 4);
 
-            rbBoth = new RadioButton(); rbBoth.Text = "Pesquisar Duplicatas E Pastas Vazias"; rbBoth.Checked = true; rbBoth.AutoSize = true;
-            rbDupsOnly = new RadioButton(); rbDupsOnly.Text = "Apenas Arquivos Duplicados"; rbDupsOnly.AutoSize = true;
-            rbEmptyOnly = new RadioButton(); rbEmptyOnly.Text = "Apenas Pastas Vazias"; rbEmptyOnly.AutoSize = true;
-            cbProtectSystem = new CheckBox(); cbProtectSystem.Text = "Proteger pastas do sistema (Windows/Apps)"; cbProtectSystem.Checked = true; cbProtectSystem.AutoSize = true; cbProtectSystem.ForeColor = Color.DarkBlue;
-            cbRecursive = new CheckBox(); cbRecursive.Text = "Subpastas recursivas"; cbRecursive.Checked = true; cbRecursive.AutoSize = true;
-            cbHidden = new CheckBox(); cbHidden.Text = "Incluir ocultos"; cbHidden.Checked = false; cbHidden.AutoSize = true;
+            rbBoth = new RadioButton(); rbBoth.Text = "Pesquisar Duplicatas E Pastas Vazias"; rbBoth.Checked = true; rbBoth.AutoSize = true; rbBoth.Margin = new Padding(3, 2, 3, 2);
+            rbDupsOnly = new RadioButton(); rbDupsOnly.Text = "Apenas Arquivos Duplicados"; rbDupsOnly.AutoSize = true; rbDupsOnly.Margin = new Padding(3, 2, 3, 2);
+            rbEmptyOnly = new RadioButton(); rbEmptyOnly.Text = "Apenas Pastas Vazias"; rbEmptyOnly.AutoSize = true; rbEmptyOnly.Margin = new Padding(3, 2, 3, 2);
+            cbProtectSystem = new CheckBox(); cbProtectSystem.Text = "Proteger pastas do sistema (Windows/Apps)"; cbProtectSystem.Checked = true; cbProtectSystem.AutoSize = true; cbProtectSystem.ForeColor = Color.DarkBlue; cbProtectSystem.Margin = new Padding(3, 4, 3, 2);
+            cbRecursive = new CheckBox(); cbRecursive.Text = "Subpastas recursivas"; cbRecursive.Checked = true; cbRecursive.AutoSize = true; cbRecursive.Margin = new Padding(3, 2, 3, 2);
+            cbHidden = new CheckBox(); cbHidden.Text = "Incluir arquivos ocultos"; cbHidden.Checked = false; cbHidden.AutoSize = true; cbHidden.Margin = new Padding(3, 2, 3, 2);
 
             pnlModes.Controls.AddRange(new Control[] { rbBoth, rbDupsOnly, rbEmptyOnly, cbProtectSystem, cbRecursive, cbHidden });
             gbMode.Controls.Add(pnlModes);
@@ -1177,15 +1273,32 @@ namespace DupFinderNeo
             worker = new BackgroundWorker();
             worker.WorkerSupportsCancellation = true;
 
-            engine.OnStatusUpdate += delegate(string msg)
+            engine.OnStatusUpdate = delegate(string msg)
             {
                 if (this.InvokeRequired) this.BeginInvoke(new Action(delegate { lblStatus.Text = msg; }));
                 else lblStatus.Text = msg;
             };
 
-            engine.OnProgressUpdate += delegate(int cur, int total, string custom)
+            engine.OnProgressUpdate = delegate(int cur, int total, string custom)
             {
-                if (total <= 0) return;
+                if (total <= 0)
+                {
+                    if (this.InvokeRequired)
+                    {
+                        this.BeginInvoke(new Action(delegate
+                        {
+                            progressBar.Value = 0;
+                            progressBar.CustomText = custom;
+                        }));
+                    }
+                    else
+                    {
+                        progressBar.Value = 0;
+                        progressBar.CustomText = custom;
+                    }
+                    return;
+                }
+
                 int pct = (int)((long)cur * 100 / total);
                 if (pct < 0) pct = 0; if (pct > 100) pct = 100;
                 if (this.InvokeRequired)

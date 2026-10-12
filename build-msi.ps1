@@ -92,6 +92,7 @@ ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('DiskPrompt', 'DupFi
 ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('REINSTALLMODE', 'amus')"
 ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('MSIRESTARTMANAGERCONTROL', 'Disable')"
 ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('DefaultUIFont', 'DlgFont8')"
+ExecSql $db "INSERT INTO Property (Property, Value) VALUES ('ARPPRODUCTICON', 'DupFinderIco')"
 
 # 2. Upgrade Table for Seamless Reinstallation and Clean Removal of Previous Versions
 ExecSql $db "CREATE TABLE Upgrade (UpgradeCode CHAR(38) NOT NULL, VersionMin CHAR(20), VersionMax CHAR(20), Language CHAR(30), Attributes LONG NOT NULL, Remove CHAR(255), ActionProperty CHAR(72) NOT NULL PRIMARY KEY UpgradeCode, VersionMin, VersionMax, Language, Attributes)"
@@ -142,15 +143,27 @@ ExecSql $db "INSERT INTO FeatureComponents (Feature_, Component_) VALUES ('Compl
 
 # 9. Shortcut
 ExecSql $db "CREATE TABLE Shortcut (Shortcut CHAR(72) NOT NULL, Directory_ CHAR(72) NOT NULL, Name CHAR(128) NOT NULL, Component_ CHAR(72) NOT NULL, Target CHAR(72) NOT NULL, Arguments CHAR(255), Description CHAR(255), Hotkey SHORT, Icon_ CHAR(72), IconIndex SHORT, ShowCmd SHORT, WkDir CHAR(72) PRIMARY KEY Shortcut)"
-ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_MenuExe', 'MenuFolder', 'DUPFIN~1|DupFinder-Neo', 'C_MenuShort', '[#F_Exe]', NULL, 'DupFinder-Neo $appDisplayVersion (by @heitorsecurity)', NULL, NULL, NULL, 1, 'INSTALLDIR')"
+ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_MenuExe', 'MenuFolder', 'DUPFIN~1|DupFinder-Neo', 'C_MenuShort', '[#F_Exe]', NULL, 'DupFinder-Neo $appDisplayVersion (by @heitorsecurity)', NULL, 'DupFinderIco', 0, 1, 'INSTALLDIR')"
 ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_MenuReadme', 'MenuFolder', 'README~1|Readme.txt', 'C_MenuShort', '[#F_Readme]', NULL, 'Informacoes e Ajuda do DupFinder-Neo', NULL, NULL, NULL, 1, 'INSTALLDIR')"
-ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_MenuUninstall', 'MenuFolder', 'DESINS~1|Desinstalar DupFinder-Neo', 'C_MenuShort', '[#F_Setup]', '/uninstall', 'Desinstalar DupFinder-Neo $appDisplayVersion', NULL, NULL, NULL, 1, 'INSTALLDIR')"
-ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_DeskExe', 'DesktopFolder', 'DUPFIN~1|DupFinder-Neo', 'C_DeskShort', '[#F_Exe]', NULL, 'DupFinder-Neo $appDisplayVersion (by @heitorsecurity)', NULL, NULL, NULL, 1, 'INSTALLDIR')"
+ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_MenuUninstall', 'MenuFolder', 'DESINS~1|Desinstalar DupFinder-Neo', 'C_MenuShort', '[#F_Setup]', '/uninstall', 'Desinstalar DupFinder-Neo $appDisplayVersion', NULL, 'DupFinderIco', 0, 1, 'INSTALLDIR')"
+ExecSql $db "INSERT INTO Shortcut (Shortcut, Directory_, Name, Component_, Target, Arguments, Description, Hotkey, Icon_, IconIndex, ShowCmd, WkDir) VALUES ('S_DeskExe', 'DesktopFolder', 'DUPFIN~1|DupFinder-Neo', 'C_DeskShort', '[#F_Exe]', NULL, 'DupFinder-Neo $appDisplayVersion (by @heitorsecurity)', NULL, 'DupFinderIco', 0, 1, 'INSTALLDIR')"
 
 # 9b. Registry Table for conditional shortcut key paths
 ExecSql $db "CREATE TABLE Registry (Registry CHAR(72) NOT NULL, Root SHORT NOT NULL, ``Key`` CHAR(255) NOT NULL, Name CHAR(255), Value CHAR(0), Component_ CHAR(72) NOT NULL PRIMARY KEY Registry)"
 ExecSql $db "INSERT INTO Registry (Registry, Root, ``Key``, Name, Value, Component_) VALUES ('R_Desk', -1, 'Software\DupFinder-Neo', 'DesktopShortcut', '1', 'C_DeskShort')"
 ExecSql $db "INSERT INTO Registry (Registry, Root, ``Key``, Name, Value, Component_) VALUES ('R_Menu', -1, 'Software\DupFinder-Neo', 'MenuShortcuts', '1', 'C_MenuShort')"
+
+# 9c. Icon Table
+Write-Host "Incorporando icone oficial dupf-neo.ico no pacote MSI..."
+ExecSql $db "CREATE TABLE Icon (Name CHAR(72) NOT NULL, Data OBJECT NOT NULL PRIMARY KEY Name)"
+$icoPath = Join-Path $PSScriptRoot "dupf-neo.ico"
+$iconView = $db.OpenView("SELECT Name, Data FROM Icon")
+$iconView.Execute()
+$iconRec = $wi.CreateRecord(2)
+$iconRec.StringData(1) = "DupFinderIco"
+$iconRec.SetStream(2, $icoPath)
+$iconView.Modify(1, $iconRec)
+$iconView.Close()
 
 # 10. Native MSI UI Tables: TextStyle, Dialog, Control, ControlEvent, RadioButton, CheckBox, EventMapping
 Write-Host "Configurando telas interativas do assistente MSI (Next/Back/Install)..."

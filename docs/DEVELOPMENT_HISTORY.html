@@ -198,6 +198,43 @@
           <li>Execucao em tempo real via <code>msiexec.exe /i dupfinder-neo.msi /l*v</code> confirmando resolucao de dependencias de componentes, integracao com <code>Registry</code> e execucao sem erros.</li>
         </ul>
       </section>
+
+      <section>
+        <h3>2026-10-12 - Correcao de Layout Quebrado, Feedback em Tempo Real da Varredura e Integracao do Icone dupf-neo.ico</h3>
+        <p><strong>Evidence level:</strong> Current source/config, Execution log, Runtime/data artifact.</p>
+
+        <h4>Fixed</h4>
+        <ul>
+          <li>Corrigido layout quebrado no painel &quot;Modo de busca inicial&quot; em <code>src-win/DupFinderNeo.cs</code>: ajustado o container <code>FlowLayoutPanel</code> com <code>WrapContents = false</code>, margens uniformes e ampliacao da linha superior de configuracoes para 220px, eliminando a quebra em coluna fantasma que truncava o controle <code>[ ] Incl</code> (<code>cbHidden</code>).</li>
+          <li>Corrigido o travamento visual da barra de pesquisa em 0% e status estatico durante a fase de indexacao:
+            <ul>
+              <li>Implementada emissao de status em tempo real a cada 50ms (via <code>Environment.TickCount</code> throttle) reportando o caminho compacto da pasta sendo lida e o total acumulado de arquivos e pastas catalogados.</li>
+              <li>Implementada protecao contra loops recursivos infinitos causados por Juncoes do Windows / Reparse Points (ex: <code>AppData\Local\Application Data</code>) ignorando pastas com atributo <code>FileAttributes.ReparsePoint</code>.</li>
+              <li>Separada a leitura de arquivos (<code>Directory.GetFiles</code>) da enumeracao de subdiretorios (<code>Directory.GetDirectories</code>) com tratamento resiliente de excecoes de permissao (<code>UnauthorizedAccessException</code>).</li>
+              <li>Ajustado o tratador de progresso para exibir a contagem de arquivos coletados diretamente na barra mesmo com <code>total &lt;= 0</code>, alem de mensagens detalhadas durante as etapas de pre-hashing e validacao binaria SHA-256.</li>
+            </ul>
+          </li>
+        </ul>
+
+        <h4>Included</h4>
+        <ul>
+          <li>Integrado o icone oficial <code>dupf-neo.ico</code> na raiz do repositorio e aplicado em todos os executaveis compilados (<code>dupfinder-neo.exe</code>, <code>dupfinder-watcher.exe</code> e <code>dupfinder-neo-setup.exe</code>) atraves da flag de compilacao <code>/win32icon:dupf-neo.ico</code>.</li>
+          <li>Adicionada a tabela <code>Icon</code> no Windows Installer (<code>build-msi.ps1</code>) com stream do arquivo <code>dupf-neo.ico</code> (identificador <code>DupFinderIco</code>), associada a propriedade <code>ARPPRODUCTICON</code> e a coluna <code>Icon_</code> da tabela <code>Shortcut</code> para os atalhos do Desktop e Menu Iniciar.</li>
+        </ul>
+
+        <h4>Changed</h4>
+        <ul>
+          <li><code>src-win/DupFinderNeo.cs</code>: Substituida declaracao de eventos por delegados diretos para impedir acumulo indevido de manipuladores ao reiniciar buscas consecutivas; adicionadas verificacoes de cancelamento e throttle de atualizacao.</li>
+          <li><code>build-msi.ps1</code>: Atualizado para incorporar a tabela <code>Icon</code> e vincular icones nos atalhos e registro de desinstalacao do Windows.</li>
+          <li><code>dupfinder-neo.msi</code>: Recompilado e atualizado.</li>
+        </ul>
+
+        <h4>Validation</h4>
+        <ul>
+          <li>Compilacao concluida com sucesso de todos os tres executaveis C# com <code>csc.exe</code> (.NET 4.0 runtime) com icone embutido.</li>
+          <li>Execucao bem-sucedida de <code>build-msi.ps1</code> com criacao integra do pacote <code>dupfinder-neo.msi</code> contendo tabela <code>Icon</code> e data.cab.</li>
+        </ul>
+      </section>
     </main>
 
     <aside class="toc" aria-label="Sumario">
@@ -207,6 +244,7 @@
       <a href="#2026-10-12---implementacao-de-interface-grafica-nativa-wizard-dialogs-e-atualizacao-limpa-no-pacote-windows-installer-msi" data-level="3">2026-10-12: UI Nativa MSI</a>
       <a href="#2026-10-12---correcao-dos-erros-2810-e-2874-na-estrutura-de-controles-e-fontes-do-windows-installer-msi" data-level="3">2026-10-12: Correcao Erros 2810/2874</a>
       <a href="#2026-10-12---implementacao-de-selecao-de-escopo-de-usuarios-monitor-watcher-opcional-e-atalhos-no-assistente-msi" data-level="3">2026-10-12: Opcoes de Instalacao no MSI</a>
+      <a href="#2026-10-12---correcao-de-layout-quebrado-feedback-em-tempo-real-da-varredura-e-integracao-do-icone-dupf-neo.ico" data-level="3">2026-10-12: Layout, Feedback e Icone</a>
     </aside>
   </div>
   <footer class="footer">
