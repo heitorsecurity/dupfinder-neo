@@ -1,9 +1,9 @@
 [package]
 name = "dupfinder-neo-rust"
-version = "0.9.0"
+version = "1.0.0"
 edition = "2021"
-authors = ["DupFinder Neo Project"]
-description = "Fast, accurate duplicate file finder and empty directory cleaner"
+authors = ["@heitorsecurity", "Patrick De Smet"]
+description = "DupFinder-Neo v1.0 (by @heitorsecurity) - Fast, accurate duplicate file finder, empty dir cleaner and real-time watcher"
 
 [dependencies]
 # Dependencias padrao opcionais (a engine de referencia funciona com pure std)

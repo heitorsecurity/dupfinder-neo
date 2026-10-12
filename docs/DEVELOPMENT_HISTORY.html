@@ -91,10 +91,14 @@
           <li><code>stdinc.h</code>: Inclusao de containers STL modernos (<code>&lt;map&gt;</code>, <code>&lt;vector&gt;</code>).</li>
         </ul>
 
-        <h4>Fixed</h4>
-        <ul>
-          <li>Corrigido erro 1334 do Windows Installer (<code>The file 'F_Exe' cannot be found in cabinet file 'data.cab'</code>) no <code>build-msi.ps1</code> alinhando os identificadores internos do arquivo CAB com as chaves primarias da tabela <code>File</code> (<code>F_Exe</code>, <code>F_Readme</code>, <code>F_License</code>), adicionando sequencias de desinstalacao limpa e configurando <code>PID_WORDCOUNT</code>.</li>
-        </ul>
+          <li>Adicionado temporizador em tempo real (<code>Stopwatch</code> + <code>hh:mm:ss</code>) e componente <code>PercentageProgressBar</code> com renderizacao direta de porcentagem e contagem dentro da barra de progresso.</li>
+          <li>Implementada memoria de persistencia da ultima pasta selecionada em <code>%APPDATA%\DupFinder-Neo\last_folder.txt</code>.</li>
+          <li>Implementado dialogo de selecao de multiplas pastas (<code>MultiFolderSelectorForm</code>) com arvore de diretorios expansivel sob demanda, caixas de selecao e importacao em lote de subpastas.</li>
+          <li>Criado o servico e aplicacao em segundo plano <code>dupfinder-watcher.exe</code> (estilo Everything do voidtools) com <code>FileSystemWatcher</code>, debouncing inteligente, deteccao automatica de arquivos duplicados recem-criados e alerta instantaneo via notificacao nativa do Windows (BalloonTip/Toast) e janela de acoes comparativas.</li>
+          <li>Desenvolvido assistente interativo em 6 etapas no <code>dupfinder-neo-setup.exe</code> com apresentacao de licenca, selecao de escopo (todos os usuarios ou apenas usuario atual), selecao de atalhos e ativacao opcional do monitor em segundo plano.</li>
+          <li>Implementada rotina de desinstalacao limpa que encerra processos do monitor, remove autostart no registro, remove atalhos do Desktop e Menu Iniciar, exclui arquivos instalados e remove residuos do computador.</li>
+          <li>Padronizado o nome e versionamento em todo o projeto para <code>DupFinder-Neo v1.0 (by @heitorsecurity)</code>, com politica de avanco incremental (v1.0 -> v1.1 -> v1.2).</li>
+          <li>Rebuildado <code>dupfinder-neo.msi</code> versao 1.0.0 com os 5 arquivos de distribuicao, acao customizada do assistente e atalhos completos no Menu Iniciar.</li>
 
         <h4>Data/Compatibility</h4>
         <ul>

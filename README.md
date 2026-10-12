@@ -1,18 +1,21 @@
-# DupFinder Neo 🚀
+# DupFinder-Neo v1.0 (by @heitorsecurity) 🚀
 
-> **Localizador Inteligente de Duplicatas, Pastas em Comum e Limpador de Diretórios Vazios**  
-> Compatível com **Windows XP, Vista, 7, 8, 8.1, 10 e 11**.
+> **Localizador Inteligente de Duplicatas, Detector de Pastas em Comum, Monitor em Tempo Real e Limpador de Diretórios Vazios**  
+> Compatível com **Windows XP, Vista, 7, 8, 8.1, 10 e 11**.  
+> **Versão Oficial:** `v1.0` *(Política de versionamento contínuo: v1.0 -> v1.1 -> v1.2 ...)*
 
 ---
 
 ## 📌 Sumário
 1. [O que era o projeto original](#-o-que-era-o-projeto-original)
 2. [O que tinha no projeto anterior e suas limitações](#-o-que-tinha-no-projeto-anterior-e-suas-limitações)
-3. [O que foi feito agora no DupFinder Neo](#-o-que-foi-feito-agora-no-dupfinder-neo)
-4. [Estrutura do Repositório e Arquivos](#-estrutura-do-repositório-e-arquivos)
-5. [Como Executar e Instalar](#-como-executar-e-instalar)
-6. [Projeto SOT (Single Source of Truth) & Portabilidade Rust](#-projeto-sot-single-source-of-truth--portabilidade-rust)
-7. [Licença e Créditos](#-licença-e-créditos)
+3. [O que foi feito no DupFinder-Neo v1.0 (by @heitorsecurity)](#-o-que-foi-feito-no-dupfinder-neo-v10-by-heitorsecurity)
+4. [Novo Monitor / Indexador em Segundo Plano (Estilo 'Everything')](#-novo-monitor--indexador-em-segundo-plano-estilo-everything)
+5. [Instalador Interativo e Assistente Completo](#-instalador-interativo-e-assistente-completo)
+6. [Estrutura do Repositório e Arquivos](#-estrutura-do-repositório-e-arquivos)
+7. [Como Executar e Instalar](#-como-executar-e-instalar)
+8. [Projeto SOT (Single Source of Truth) & Portabilidade Rust](#-projeto-sot-single-source-of-truth--portabilidade-rust)
+9. [Licença e Créditos](#-licença-e-créditos)
 
 ---
 
@@ -23,7 +26,7 @@ O seu objetivo era oferecer um utilitário simples em C++ para localizar arquivo
 - Uma interface de linha de comando (`dupf.exe`).
 - Uma interface gráfica rudimentar baseada no framework multiplataforma **wxWidgets** (versões 2.4/2.6).
 
-A premissa inicial do autor era evitar algoritmos de hash criptográficos lentos da época (como MD5 ou SHA-1 completos em todo o conteúdo de arquivos gigantescos), recorrendo a comparações de tamanho de arquivo e leitura direta sequencial byte-a-byte.
+A premissa inicial do autor era evitar algoritmos de hash criptográficos completos, recorrendo a comparações de tamanho de arquivo e leitura direta sequencial byte-a-byte.
 
 ---
 
@@ -39,63 +42,78 @@ O projeto original possuía diversas barreiras estruturais, funcionais e visuais
    - Quando duas pastas inteiras eram duplicadas (exemplo: uma pasta inteira de fotos com 5.000 imagens copiada para outro disco como backup), o software listava 5.000 arquivos soltos. O usuário precisava inspecionar e selecionar arquivo por arquivo manualmente, sem saber que se tratava de uma pasta espelhada redundante.
 4. **Sem Salvaguarda Ativa do Sistema Operacional**:
    - Não havia lista de bloqueio ou checagem preventiva contra arquivos e diretórios do sistema (`Windows`, `System32`, `Program Files`, diretórios temporários do SO, etc.), expondo o usuário ao risco de quebrar o Windows ao apagar itens indevidos.
-5. **Interface Monolítica e Sem Escolha de Modo**:
-   - Não havia separação de intenção no início da busca: o usuário não podia escolher se queria focar apenas em pastas vazias, apenas em duplicatas, ou ambos.
+5. **Interface Monolítica, Sem Temporizador e Sem Porcentagem Visual**:
+   - Não havia temporizador informando quanto tempo a busca levou, nem barra moderna desenhando a porcentagem diretamente no seu corpo.
+   - Não permitia selecionar mais de uma pasta ao mesmo tempo.
+   - Não lembrava qual tinha sido a última pasta selecionada.
 6. **Incompatibilidade com o Ecossistema Moderno de Compilação**:
-   - O código original dependia de compiladores legados de mais de 20 anos atrás (*Borland C++ 5.5, OpenWatcom, Visual C++ 6.0, GCC 3.x com autotools de 2004*) e de bibliotecas wxWidgets legadas que não compilam em toolchains modernos de 64 bits nem se integram ao Windows moderno sem profundas modificações.
+   - O código original dependia de compiladores legados de mais de 20 anos atrás (*Borland C++ 5.5, OpenWatcom, Visual C++ 6.0, GCC 3.x com autotools de 2004*) e de bibliotecas wxWidgets legadas que não compilam em toolchains modernos de 64 bits.
 
 ---
 
-## ✨ O que foi feito agora no DupFinder Neo
+## ✨ O que foi feito no DupFinder-Neo v1.0 (by @heitorsecurity)
 
-O projeto foi totalmente reformulado, modernizado e expandido em múltiplos eixos:
+O projeto foi totalmente reconstruído, modernizado e expandido por **@heitorsecurity**:
 
-### 1. Modernização da Engine C++ Original
+### 1. Engine de Varredura Ultra-Rápida
 - **Pre-hashing Amostral Ultra-Rápido (`FNV-1a 64-bit`)**:
-  - Implementada a função `ComputeSampleHash` em `dbl.cpp`. Antes de comparar arquivos grandes byte-a-byte, o motor extrai e avalia amostras do cabeçalho e do rodapé do arquivo (4 KB de cada ponta). Isso elimina **mais de 95% das comparações falsas** instantaneamente com I/O mínimo.
+  - Avalia amostras estratégicas do cabeçalho e do rodapé do arquivo (4 KB de cada ponta). Elimina **mais de 95% das comparações falsas** instantaneamente com I/O mínimo.
 - **Detecção e Exclusão Segura de Diretórios Vazios**:
-  - Adicionadas as rotinas `FindEmptyDirectories` e `DeleteEmptyDir` em `dbl.cpp`, que varrem árvores de pastas de baixo para cima (bottom-up) identificando pastas sem arquivos ou subpastas.
+  - Varredura de baixo para cima (bottom-up) que cataloga pastas vazias e oferece exclusão limpa em lote.
 - **Análise Inteligente de Pastas em Comum**:
-  - Implementada a função `AnalyzeCommonFolders`, que detecta diretórios que compartilham múltiplos arquivos idênticos, calcula a porcentagem de similaridade e recomenda a eliminação do clone redundante com um único clique.
-- **Proteção Ativa de Pastas de Sistema**:
-  - Implementada a função `IsSystemProtectedDir`, que protege preventivamente `C:\Windows`, `System32`, `Program Files`, `Program Files (x86)`, `AppData\Microsoft`, `$Recycle.Bin` e pastas de volume.
-- **Seletor de Modo na Inicialização (`ScanTargetMode`)**:
-  - O usuário define na primeira tela se deseja:
-    1. *Apenas Arquivos Duplicados*
-    2. *Duplicatas e Pastas Vazias*
-    3. *Apenas Pastas Vazias*
-- **Build Moderno**:
-  - Adicionado suporte a `CMakeLists.txt` padrão.
+  - Agrupa arquivos duplicados por ancestral e detecta diretórios redundantes inteiros, recomendando a exclusão do clone com 1 clique.
+- **Proteção Ativa do Sistema**:
+  - Salvaguarda rigorosa que protege `C:\Windows`, `System32`, `Program Files`, `AppData\Microsoft`, `$Recycle.Bin`, etc.
+- **Seletor de Modo na Inicialização**:
+  - Escolha se quer pesquisar apenas arquivos duplicados, ambos ou apenas pastas vazias logo na abertura.
+
+### 2. Interface Moderna do Usuário com Temporizador e Barra de Porcentagem
+- **Título Oficial**: `DupFinder-Neo v1.0 (by @heitorsecurity)` em todo o sistema.
+- **Barra de Progresso com Porcentagem Interna**: Componente `PercentageProgressBar` desenha a porcentagem e a contagem de arquivos processados diretamente dentro do preenchimento da barra.
+- **Temporizador de Varredura em Tempo Real**: Exibe o tempo decorrido com precisão (`⏱️ 00:01:23`), velocidade em arquivos por segundo e o tempo total ao finalizar.
+- **Memória de Última Pasta**: Lembra automaticamente qual foi a última pasta adicionada e abre diretamente nela ao clicar em *+ Adicionar Pasta...*.
+- **Seleção de Múltiplas Pastas de Uma Vez**: Botão dedicado *+ Várias Pastas...* com árvore de unidades, expansão sob demanda, caixas de seleção (checkboxes) e recurso para importar todas as subpastas de um diretório com 1 clique.
 
 ---
 
-### 2. Nova Aplicação Windows Nativa (Compatível de Windows XP ao Windows 11)
-Para garantir execução imediata, rápida e sem necessidade de compilar wxWidgets legados, foi criada uma nova versão gráfica nativa:
-- **Tecnologia**: C# 5 / .NET Framework 4.0 Client Profile (compilada diretamente com o `csc.exe` nativo do Windows).
-- **Compatibilidade**: Roda perfeitamente em **Windows XP SP3, Windows Vista, Windows 7, Windows 8, Windows 8.1, Windows 10 e Windows 11** (x86 e x64).
-- **Interface Gráfica Moderna e Multithread**:
-  - Motor de busca assíncrono em segundo plano com barra de progresso suave e contadores dinâmicos sem travamento de interface (*UI não congela*).
-  - Três abas de resultados dedicadas:
-    - **Aba de Duplicatas**: Listagem agrupada por cor, visualização de caminho, tamanho formatado e data. Botões rápidos de pré-seleção: *Marcar Mais Recentes*, *Marcar Mais Antigos*, *Marcar Caminho Mais Longo* e *Inverter Seleção*.
-    - **Aba de Pastas em Comum**: Tabela analítica com Pasta Principal, Pasta Clonada, Arquivos Compartilhados, Similaridade e botão *"Excluir Pasta Clone"*.
-    - **Aba de Pastas Vazias**: Tabela detalhada de diretórios vazios detectados com botão *"Excluir Selecionadas"*, acompanhado de tela de confirmação de segurança.
+## 🛰️ Novo Monitor / Indexador em Segundo Plano (Estilo 'Everything')
+
+O **DupFinder-Neo v1.0** traz um recurso inovador e opcional: **`dupfinder-watcher.exe`**:
+- **Monitoramento Passivo e Inteligente**: Fica ativo na bandeja do sistema (System Tray) consumindo menos de 0.1% de CPU e RAM mínima.
+- **Detecção Instantânea de Duplicatas**: Utiliza `FileSystemWatcher` para monitorar pastas de download, documentos, desktop e mídias. Quando você baixa, cria ou copia um arquivo novo:
+  1. Aguarda a finalização da escrita (debounce).
+  2. Compara o tamanho e o hash amostral contra o catálogo indexado.
+  3. Valida via SHA-256 binário para garantir 100% de acurácia.
+- **Notificação Nativa do Windows**: Exibe um aviso imediato na barra de notificações:  
+  *“DupFinder-Neo v1.0: Arquivo Duplicado! Você acabou de duplicar um arquivo existente: 'foto (1).jpg'. Clique aqui para ver opções.”*
+- **Janela de Ação Imediata**: Ao clicar na notificação, abre uma janela limpa com:
+  - Comparativo lado a lado do arquivo novo e do original.
+  - Botões para **Abrir Arquivo**, **Abrir Pasta no Explorer**, **Excluir Cópia Duplicada** ou **Abrir o DupFinder-Neo Completo**.
+- **Opcionalidade Total**: Este serviço **só é ativado no momento da instalação se o usuário desejar**.
 
 ---
 
-### 3. Instaladores Prontos para Uso no Windows
-Criados pacotes prontos de distribuição para facilitar a instalação em qualquer máquina:
-- **`dupfinder-neo.exe`**: Executável único portátil (*standalone*). Basta dar dois cliques para rodar.
-- **`dupfinder-neo-setup.exe`**: Assistente de instalação interativo para Windows com criação automática de atalhos na Área de Trabalho e no Menu Iniciar, além de desinstalador no Painel de Controle.
-- **`dupfinder-neo.msi`**: Pacote oficial do **Windows Installer** (`.msi`) gerado via automação COM nativa (`WindowsInstaller.Installer`), pronto para distribuição corporativa ou via GPO / Active Directory.
+## 📦 Instalador Interativo e Assistente Completo
 
----
-
-### 4. Projeto SOT (Single Source of Truth) para Portabilidade Futura (Rust)
-Pensando em futura reimplementação em linguagens modernas de alta performance como **Rust**, foi construída uma arquitetura espelho desacoplada:
-- **`sot/MAPA_ARQUITETURA.md`**: Especificação técnica minuciosa que mapeia o pipeline de varredura em 4 fases, as estruturas de dados, os contratos e os algoritmos para implementação em qualquer linguagem.
-- **`sot/dupfinder_engine.rs`**: Implementação de referência idiomática em Rust 2021, utilizando memória segura, `BTreeMap`, hashing amostral e testes unitários integrados.
-- **`sot/main.rs` & `sot/Cargo.toml`**: Ponto de entrada CLI completo em Rust pronto para compilar com `cargo build --release`.
-- **`dupfinder-neo-sourcecode-sot.zip`**: Arquivo ZIP autocontido armazenado na raiz contendo todo o pacote de referência para migração.
+Tanto o instalador `.msi` quanto o instalador `.exe` trazem um assistente interativo:
+1. **Tela de Boas-Vindas**: Identificação completa da versão `v1.0 (by @heitorsecurity)`.
+2. **Tela de Licença**: Apresenta a licença GNU GPL v2 acompanhada do adendo de modificações e direitos de @heitorsecurity.
+3. **Escolha de Local e Escopo**:
+   - *Todos os Usuários da Máquina* (`C:\Program Files\DupFinder-Neo`)
+   - *Apenas o Usuário Atual* (`%LOCALAPPDATA%\Programs\DupFinder-Neo`)
+4. **Opções de Atalhos e Monitor**:
+   - [X] Criar atalho na Área de Trabalho (Desktop)
+   - [X] Criar atalhos no Menu Iniciar:
+     - `DupFinder-Neo`
+     - `Readme.txt`
+     - `Desinstalar DupFinder-Neo`
+   - [ ] Ativar o Monitor DupFinder-Neo Watcher em segundo plano (opcional)
+5. **Barra de Progresso da Instalação**: Barra personalizada mostrando porcentagem e status de cópia e registro.
+6. **Desinstalação Limpa**:
+   - Mata qualquer processo em execução do monitor (`dupfinder-watcher.exe`) e da aplicação principal.
+   - Remove as rotinas de inicialização automática no registro.
+   - Remove todos os atalhos criados.
+   - Remove pastas de instalação e dados temporários sem deixar rastros no computador.
 
 ---
 
@@ -103,31 +121,32 @@ Pensando em futura reimplementação em linguagens modernas de alta performance 
 
 ```text
 dupfinder-neo/
-├── README.md                           <- Este documento descritivo e explicativo
-├── dupfinder-neo.exe                   <- Executável principal (Portátil, XP a 11)
-├── dupfinder-neo-setup.exe             <- Assistente de Instalação do Windows
-├── dupfinder-neo.msi                   <- Pacote de Instalação Windows Installer (MSI)
-├── dupfinder-neo-sourcecode-sot.zip    <- Pacote ZIP Single-Source-of-Truth para Rust
+├── README.md                           <- Documentação completa e especificações v1.0
+├── LICENSE.TXT                         <- Licença GPL v2 com adendos de @heitorsecurity
+├── dupfinder-neo.exe                   <- Executável principal v1.0 (Portátil, XP a 11)
+├── dupfinder-watcher.exe               <- Monitor e indexador em segundo plano
+├── dupfinder-neo-setup.exe             <- Assistente de instalação e desinstalador interativo
+├── dupfinder-neo.msi                   <- Pacote Windows Installer oficial v1.0
+├── dupfinder-neo-sourcecode-sot.zip    <- Pacote SOT de portabilidade (Rust/Agnóstico)
 │
-├── src-win/                            <- Código-fonte da aplicação gráfica e setup
-│   ├── DupFinderNeo.cs                 <- Aplicação gráfica moderna e multithread
-│   └── SetupWizard.cs                  <- Instalador com registro no Windows
-├── build-msi.ps1                       <- Script de geração automatizada do pacote MSI
+├── src-win/                            <- Código-fonte das aplicações Windows (.NET 4 / C# 5)
+│   ├── DupFinderNeo.cs                 <- App gráfico com timer, barra % e multi-pastas
+│   ├── DupFinderWatcher.cs             <- Monitor em background estilo Everything com notificações
+│   └── SetupWizard.cs                  <- Assistente de instalação em passos e desinstalador
+├── build-msi.ps1                       <- Script automatizado de geração do pacote MSI v1.0
 │
-├── sot/                                <- Arquitetura de Portabilidade (Rust SOT)
-│   ├── Cargo.toml                      <- Manifesto Rust
-│   ├── MAPA_ARQUITETURA.md             <- Especificação de arquitetura e contratos
-│   ├── dupfinder_engine.rs             <- Engine de referência em Rust
-│   └── main.rs                         <- CLI de entrada em Rust
+├── sot/                                <- Single Source of Truth para migração (Rust)
+│   ├── Cargo.toml                      <- Manifesto Rust v1.0
+│   ├── MAPA_ARQUITETURA.md             <- Especificação do pipeline em 4 fases
+│   ├── dupfinder_engine.rs             <- Engine de referência em Rust puro
+│   └── main.rs                         <- CLI de referência em Rust
 │
 ├── docs/
-│   └── DEVELOPMENT_HISTORY.html        <- Histórico formal de mudanças e ciclo de vida
+│   └── DEVELOPMENT_HISTORY.html        <- Histórico formal de desenvolvimento
 │
-├── dbl.h / dbl.cpp                     <- Engine C++ modernizada (amostragem, pastas vazias, etc.)
-├── dialog1.h / dialog1.cpp             <- Diálogo C++ com seletores de modo
-├── dialog3_list.h / dialog3_list.cpp   <- Telas de resultados C++ com abas/ações
-├── CMakeLists.txt                      <- Script de build multiplataforma CMake
-└── [demais fontes legados do projeto]  <- Código-fonte original preservado para histórico
+├── dbl.h / dbl.cpp                     <- Engine C++ modernizada
+├── dialog1.h / dialog1.cpp             <- Diálogos C++
+└── CMakeLists.txt                      <- Script de build multiplataforma CMake
 ```
 
 ---
@@ -135,42 +154,15 @@ dupfinder-neo/
 ## 🚀 Como Executar e Instalar
 
 ### No Windows (XP ao 11):
-- **Modo Portátil**: Execute diretamente o arquivo [`dupfinder-neo.exe`](file:///c:/Users/hteix/code/empresasto/dupfinder-neo/dupfinder-neo.exe).
-- **Instalador EXE**: Execute [`dupfinder-neo-setup.exe`](file:///c:/Users/hteix/code/empresasto/dupfinder-neo/dupfinder-neo-setup.exe) e siga o assistente.
-- **Instalador MSI**: Dê dois cliques em [`dupfinder-neo.msi`](file:///c:/Users/hteix/code/empresasto/dupfinder-neo/dupfinder-neo.msi) para instalação nativa pelo Windows Installer.
-
-### Recompilando os Executáveis C# / Windows:
-Se desejar recompilar os utilitários Windows usando o compilador nativo do sistema:
-```powershell
-# Recompilar a aplicação principal
-C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe /target:winexe /optimize+ /out:dupfinder-neo.exe src-win\DupFinderNeo.cs
-
-# Recompilar o instalador
-C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe /target:winexe /optimize+ /out:dupfinder-neo-setup.exe src-win\SetupWizard.cs
-
-# Regerar o pacote MSI
-powershell -ExecutionPolicy Bypass -File build-msi.ps1
-```
-
-### Compilando a Versão de Referência em Rust:
-```bash
-cd sot
-cargo test
-cargo build --release
-```
+- **Execução Portátil**: Execute diretamente [`dupfinder-neo.exe`](file:///c:/Users/hteix/code/empresasto/dupfinder-neo/dupfinder-neo.exe).
+- **Assistente Interativo**: Execute [`dupfinder-neo-setup.exe`](file:///c:/Users/hteix/code/empresasto/dupfinder-neo/dupfinder-neo-setup.exe).
+- **Instalador MSI Corporativo**: Execute [`dupfinder-neo.msi`](file:///c:/Users/hteix/code/empresasto/dupfinder-neo/dupfinder-neo.msi).
 
 ---
 
-## 🛡️ Segurança e Proteção de Dados
+## 📄 Política de Versionamento e Créditos
 
-- **Proteção do Sistema Operacional**: O DupFinder Neo possui filtros rigorosos que impedem a seleção acidental ou exclusão de diretórios vitais do Windows (`C:\Windows`, `System32`, `Program Files`, diretórios protegidos do sistema).
-- **Confirmações Explícitas**: Nenhuma exclusão de arquivo ou pasta é realizada sem confirmação prévia com resumo da quantidade de itens afetados.
-- **Acurácia Matemática**: Arquivos de mesmo tamanho que passam pelo filtro preliminar são rigorosamente verificados por hash integral SHA-256 e comparação exata, garantindo zero risco de falsos positivos.
-
----
-
-## 📄 Licença e Créditos
-
-- **Código Original**: Patrick De Smet (GNU General Public License v2).
-- **DupFinder Neo**: Modernização de engine, algoritmos de pastas em comum, limpador de diretórios vazios, novas interfaces Windows XP-11, instaladores e arquitetura SOT em Rust.
-
+- **Versão Atual**: `v1.0` (1.0.0).  
+- **Convenção de Versões Futuras**: Atualizações incrementais seguirão o padrão `v1.0 -> v1.1 -> v1.2 -> v2.0`.
+- **Autoria Original**: Patrick De Smet (GNU General Public License v2).
+- **DupFinder-Neo v1.0**: Modernização de motor, temporizadores, barra de porcentagem interna, seleção de múltiplas pastas, monitor em segundo plano estilo Everything com notificações no Windows, instalador e desinstalador limpo por **@heitorsecurity**.

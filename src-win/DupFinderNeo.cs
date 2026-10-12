@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -68,67 +69,160 @@ namespace DupFinderNeo
             "\\winsxs",
             "\\program files",
             "\\program files (x86)",
-            "\\programdata",
+            "\\programdata\\microsoft",
+            "\\appdata\\local\\microsoft",
+            "\\appdata\\roaming\\microsoft",
             "\\$recycle.bin",
             "\\system volume information",
             "\\recovery",
-            "\\$winreagent",
-            "\\boot",
-            "\\appdata\\local\\microsoft",
-            "\\appdata\\roaming\\microsoft"
+            "\\boot"
         };
 
         public static bool IsSystemProtected(string path)
         {
             if (string.IsNullOrEmpty(path)) return true;
-            try
+            string lower = path.ToLowerInvariant();
+            foreach (var pattern in ProtectedPatterns)
             {
-                string norm = path.Trim().ToLowerInvariant().Replace('/', '\\');
-                while (norm.EndsWith("\\")) norm = norm.Substring(0, norm.Length - 1);
+                if (lower.Contains(pattern)) return true;
+            }
+            return false;
+        }
+    }
 
-                // Drive roots like C:, D:
-                if (norm.Length <= 3 && norm.Contains(":")) return true;
+    /// <summary>
+    /// Custom progress bar that draws the percentage and details directly inside the bar.
+    /// </summary>
+    public class PercentageProgressBar : Control
+    {
+        private int min = 0;
+        private int max = 100;
+        private int val = 0;
+        private string customText = string.Empty;
 
-                foreach (string pat in ProtectedPatterns)
+        public PercentageProgressBar()
+        {
+            this.SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
+            this.Height = 24;
+        }
+
+        public int Minimum
+        {
+            get { return min; }
+            set { min = value; Invalidate(); }
+        }
+
+        public int Maximum
+        {
+            get { return max; }
+            set { max = value; Invalidate(); }
+        }
+
+        public int Value
+        {
+            get { return val; }
+            set
+            {
+                val = Math.Max(min, Math.Min(max, value));
+                Invalidate();
+            }
+        }
+
+        public string CustomText
+        {
+            get { return customText; }
+            set { customText = value; Invalidate(); }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // Background
+            using (SolidBrush bgBrush = new SolidBrush(Color.FromArgb(235, 238, 242)))
+            {
+                g.FillRectangle(bgBrush, 0, 0, this.Width, this.Height);
+            }
+
+            // Fill
+            float pct = (max > min) ? (float)(val - min) / (max - min) : 0f;
+            int fillWidth = (int)(this.Width * pct);
+
+            if (fillWidth > 0)
+            {
+                Rectangle fillRect = new Rectangle(0, 0, fillWidth, this.Height);
+                using (LinearGradientBrush fillBrush = new LinearGradientBrush(fillRect, Color.FromArgb(41, 128, 185), Color.FromArgb(52, 152, 219), LinearGradientMode.Vertical))
                 {
-                    if (norm.Contains(pat)) return true;
+                    g.FillRectangle(fillBrush, fillRect);
                 }
             }
-            catch { return true; }
-            return false;
+
+            // Border
+            using (Pen borderPen = new Pen(Color.FromArgb(189, 195, 199)))
+            {
+                g.DrawRectangle(borderPen, 0, 0, this.Width - 1, this.Height - 1);
+            }
+
+            // Text inside progress bar
+            int intPct = (int)(pct * 100);
+            string display = !string.IsNullOrEmpty(customText) ? customText : string.Format("{0}%", intPct);
+
+            using (Font font = new Font("Segoe UI", 9F, FontStyle.Bold))
+            {
+                SizeF textSize = g.MeasureString(display, font);
+                float tx = (this.Width - textSize.Width) / 2f;
+                float ty = (this.Height - textSize.Height) / 2f;
+
+                // Draw high-visibility text
+                if (fillWidth > tx + (textSize.Width / 2))
+                {
+                    // Over the colored bar
+                    using (SolidBrush textBrush = new SolidBrush(Color.White))
+                    {
+                        g.DrawString(display, font, textBrush, tx, ty);
+                    }
+                }
+                else
+                {
+                    // Over background
+                    using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(44, 62, 80)))
+                    {
+                        g.DrawString(display, font, textBrush, tx, ty);
+                    }
+                }
+            }
         }
     }
 
     public class Engine
     {
         public ScanMode Mode { get; set; }
-        public bool ProtectSystemDirs { get; set; }
-        public bool RecurseSubdirectories { get; set; }
+        public bool ProtectSystem { get; set; }
+        public bool Recursive { get; set; }
         public bool IncludeHidden { get; set; }
-        public long MinSize { get; set; }
-        public long MaxSize { get; set; }
-
-        public List<string> SearchPaths { get; set; }
+        public List<string> TargetPaths { get; set; }
 
         public List<DuplicateGroup> DuplicateGroups { get; private set; }
         public List<EmptyDirectoryInfo> EmptyDirectories { get; private set; }
         public List<CommonFolderSuggestion> FolderSuggestions { get; private set; }
 
+        public int ScannedFilesCount { get; private set; }
+        public int ScannedDirsCount { get; private set; }
+
         public event Action<string> OnStatusUpdate;
-        public event Action<int, int> OnProgressUpdate;
+        public event Action<int, int, string> OnProgressUpdate;
 
         public Engine()
         {
-            Mode = ScanMode.Both;
-            ProtectSystemDirs = true;
-            RecurseSubdirectories = true;
-            IncludeHidden = false;
-            MinSize = 1;
-            MaxSize = 0;
-            SearchPaths = new List<string>();
+            TargetPaths = new List<string>();
             DuplicateGroups = new List<DuplicateGroup>();
             EmptyDirectories = new List<EmptyDirectoryInfo>();
             FolderSuggestions = new List<CommonFolderSuggestion>();
+            Mode = ScanMode.Both;
+            ProtectSystem = true;
+            Recursive = true;
+            IncludeHidden = false;
         }
 
         public void Execute(CancellationToken token)
@@ -136,112 +230,50 @@ namespace DupFinderNeo
             DuplicateGroups.Clear();
             EmptyDirectories.Clear();
             FolderSuggestions.Clear();
+            ScannedFilesCount = 0;
+            ScannedDirsCount = 0;
 
-            List<string> scannedDirs = new List<string>();
+            if (OnStatusUpdate != null) OnStatusUpdate("Iniciando varredura com o motor DupFinder-Neo v1.0...");
+
             List<FileCandidate> allFiles = new List<FileCandidate>();
 
-            if (OnStatusUpdate != null) OnStatusUpdate("Fase 1: Varrendo diretorios e catalogando arquivos...");
-
-            foreach (string root in SearchPaths)
+            // Phase 1: Directory traversal & file gathering
+            foreach (var rootPath in TargetPaths)
             {
                 if (token.IsCancellationRequested) return;
-                if (!Directory.Exists(root)) continue;
+                if (!Directory.Exists(rootPath)) continue;
 
-                Queue<string> queue = new Queue<string>();
-                queue.Enqueue(root);
-
-                while (queue.Count > 0)
+                if (ProtectSystem && SystemSafety.IsSystemProtected(rootPath))
                 {
-                    if (token.IsCancellationRequested) return;
-                    string current = queue.Dequeue();
-
-                    if (ProtectSystemDirs && SystemSafety.IsSystemProtected(current))
-                    {
-                        continue;
-                    }
-
-                    scannedDirs.Add(current);
-                    if (OnStatusUpdate != null) OnStatusUpdate("Varrendo: " + current);
-
-                    try
-                    {
-                        string[] files = Directory.GetFiles(current);
-                        foreach (string file in files)
-                        {
-                            try
-                            {
-                                FileInfo fi = new FileInfo(file);
-                                if (!IncludeHidden && (fi.Attributes & FileAttributes.Hidden) != 0) continue;
-                                if (fi.Length < MinSize) continue;
-                                if (MaxSize > 0 && fi.Length > MaxSize) continue;
-
-                                FileCandidate fc = new FileCandidate();
-                                fc.FullPath = fi.FullName;
-                                fc.FileName = fi.Name;
-                                fc.DirectoryPath = fi.DirectoryName;
-                                fc.Size = fi.Length;
-                                fc.LastModified = fi.LastWriteTime;
-                                allFiles.Add(fc);
-                            }
-                            catch { }
-                        }
-
-                        if (RecurseSubdirectories)
-                        {
-                            string[] subdirs = Directory.GetDirectories(current);
-                            foreach (string sub in subdirs)
-                            {
-                                try
-                                {
-                                    DirectoryInfo di = new DirectoryInfo(sub);
-                                    if (!IncludeHidden && (di.Attributes & FileAttributes.Hidden) != 0) continue;
-                                    if (ProtectSystemDirs && SystemSafety.IsSystemProtected(sub)) continue;
-                                    queue.Enqueue(sub);
-                                }
-                                catch { }
-                            }
-                        }
-                    }
-                    catch { }
+                    if (OnStatusUpdate != null) OnStatusUpdate("Ignorando pasta protegida do sistema: " + rootPath);
+                    continue;
                 }
+
+                ScanDirectoryRecursive(rootPath, allFiles, token);
             }
 
-            // Empty directories processing
+            if (token.IsCancellationRequested) return;
+
+            // Phase 2: Empty directories bottom-up analysis
             if (Mode == ScanMode.Both || Mode == ScanMode.EmptyDirsOnly)
             {
-                if (OnStatusUpdate != null) OnStatusUpdate("Fase 2: Identificando pastas vazias nao-sistema...");
-                for (int i = scannedDirs.Count - 1; i >= 0; i--)
+                if (OnStatusUpdate != null) OnStatusUpdate("Analisando e catalogando pastas vazias...");
+                foreach (var rootPath in TargetPaths)
                 {
                     if (token.IsCancellationRequested) return;
-                    string d = scannedDirs[i];
-                    try
-                    {
-                        if (Directory.Exists(d))
-                        {
-                            string[] files = Directory.GetFiles(d);
-                            string[] subs = Directory.GetDirectories(d);
-                            if (files.Length == 0 && subs.Length == 0)
-                            {
-                                EmptyDirectoryInfo ed = new EmptyDirectoryInfo();
-                                ed.Path = d;
-                                ed.IsSystemProtected = SystemSafety.IsSystemProtected(d);
-                                ed.LastModified = Directory.GetLastWriteTime(d);
-                                EmptyDirectories.Add(ed);
-                            }
-                        }
-                    }
-                    catch { }
+                    if (!Directory.Exists(rootPath)) continue;
+                    FindEmptyDirectoriesRecursive(rootPath, token);
                 }
             }
 
             if (Mode == ScanMode.EmptyDirsOnly)
             {
-                if (OnStatusUpdate != null) OnStatusUpdate("Concluido! Pastas vazias localizadas.");
+                if (OnStatusUpdate != null) OnStatusUpdate("Varredura de pastas vazias concluida!");
                 return;
             }
 
             // Duplicates multi-stage pipeline
-            if (OnStatusUpdate != null) OnStatusUpdate("Fase 3: Filtrando candidatos por tamanho exato...");
+            if (OnStatusUpdate != null) OnStatusUpdate("Filtrando candidatos por tamanho de arquivo exato...");
             Dictionary<long, List<FileCandidate>> sizeGroups = new Dictionary<long, List<FileCandidate>>();
             foreach (var f in allFiles)
             {
@@ -259,7 +291,7 @@ namespace DupFinderNeo
                 }
             }
 
-            if (OnStatusUpdate != null) OnStatusUpdate(string.Format("Fase 4: Pre-hashing rapido (Prefix/Suffix) de {0} candidatos...", candidateFiles.Count));
+            if (OnStatusUpdate != null) OnStatusUpdate(string.Format("Pre-hashing rapido (Prefix/Suffix) de {0:N0} arquivos...", candidateFiles.Count));
             int processed = 0;
             byte[] buffer = new byte[8192];
 
@@ -269,9 +301,14 @@ namespace DupFinderNeo
                 var f = candidateFiles[i];
                 f.SampleHash = ComputeSampleHash(f.FullPath, f.Size, buffer);
                 processed++;
-                if (processed % 50 == 0 || processed == candidateFiles.Count)
+                if (processed % 40 == 0 || processed == candidateFiles.Count)
                 {
-                    if (OnProgressUpdate != null) OnProgressUpdate(processed, candidateFiles.Count);
+                    if (OnProgressUpdate != null)
+                    {
+                        int pct = (int)((long)processed * 100 / candidateFiles.Count);
+                        string custom = string.Format("{0}% ({1:N0} / {2:N0})", pct, processed, candidateFiles.Count);
+                        OnProgressUpdate(processed, candidateFiles.Count, custom);
+                    }
                 }
             }
 
@@ -294,7 +331,7 @@ namespace DupFinderNeo
                 }
             }
 
-            if (OnStatusUpdate != null) OnStatusUpdate(string.Format("Fase 5: Validacao rigorosa SHA-256 (100% acuracia) de {0} arquivos...", hashCandidates.Count));
+            if (OnStatusUpdate != null) OnStatusUpdate(string.Format("Validacao binaria rigorosa SHA-256 (100% acuracia) de {0:N0} arquivos...", hashCandidates.Count));
             processed = 0;
             using (SHA256 sha = SHA256.Create())
             {
@@ -304,9 +341,14 @@ namespace DupFinderNeo
                     var f = hashCandidates[i];
                     f.FullSha256 = ComputeFullHash(f.FullPath, sha, buffer);
                     processed++;
-                    if (processed % 20 == 0 || processed == hashCandidates.Count)
+                    if (processed % 15 == 0 || processed == hashCandidates.Count)
                     {
-                        if (OnProgressUpdate != null) OnProgressUpdate(processed, hashCandidates.Count);
+                        if (OnProgressUpdate != null)
+                        {
+                            int pct = (int)((long)processed * 100 / hashCandidates.Count);
+                            string custom = string.Format("{0}% ({1:N0} / {2:N0})", pct, processed, hashCandidates.Count);
+                            OnProgressUpdate(processed, hashCandidates.Count, custom);
+                        }
                     }
                 }
             }
@@ -338,7 +380,7 @@ namespace DupFinderNeo
             DuplicateGroups.Sort(delegate(DuplicateGroup a, DuplicateGroup b) { return b.Size.CompareTo(a.Size); });
 
             // Common folders analysis
-            if (OnStatusUpdate != null) OnStatusUpdate("Fase 6: Analisando pastas em comum e gerando sugestoes...");
+            if (OnStatusUpdate != null) OnStatusUpdate("Analisando pastas em comum e gerando recomendacoes...");
             AnalyzeCommonFolders();
 
             if (OnStatusUpdate != null) OnStatusUpdate("Busca finalizada com sucesso!");
@@ -358,10 +400,9 @@ namespace DupFinderNeo
                         hash ^= buf[i];
                         hash *= 1099511628211UL;
                     }
-
-                    if (size > 8192)
+                    if (size > 4096)
                     {
-                        fs.Seek(size - 4096, SeekOrigin.Begin);
+                        fs.Seek(Math.Max(0, size - 4096), SeekOrigin.Begin);
                         int read2 = fs.Read(buf, 0, 4096);
                         for (int i = 0; i < read2; i++)
                         {
@@ -379,7 +420,7 @@ namespace DupFinderNeo
         {
             try
             {
-                using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 65536))
+                using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
                     byte[] hash = sha.ComputeHash(fs);
                     StringBuilder sb = new StringBuilder(hash.Length * 2);
@@ -390,64 +431,362 @@ namespace DupFinderNeo
             catch { return null; }
         }
 
+        private void ScanDirectoryRecursive(string dir, List<FileCandidate> files, CancellationToken token)
+        {
+            if (token.IsCancellationRequested) return;
+
+            try
+            {
+                ScannedDirsCount++;
+                string[] dirFiles = Directory.GetFiles(dir);
+                foreach (var file in dirFiles)
+                {
+                    if (token.IsCancellationRequested) return;
+                    try
+                    {
+                        FileInfo fi = new FileInfo(file);
+                        if (!IncludeHidden && (fi.Attributes & FileAttributes.Hidden) != 0) continue;
+
+                        FileCandidate fc = new FileCandidate
+                        {
+                            FullPath = fi.FullName,
+                            FileName = fi.Name,
+                            DirectoryPath = fi.DirectoryName,
+                            Size = fi.Length,
+                            LastModified = fi.LastWriteTime
+                        };
+                        files.Add(fc);
+                        ScannedFilesCount++;
+                    }
+                    catch { }
+                }
+
+                if (Recursive)
+                {
+                    string[] subDirs = Directory.GetDirectories(dir);
+                    foreach (var sub in subDirs)
+                    {
+                        if (token.IsCancellationRequested) return;
+                        if (ProtectSystem && SystemSafety.IsSystemProtected(sub)) continue;
+                        ScanDirectoryRecursive(sub, files, token);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void FindEmptyDirectoriesRecursive(string dir, CancellationToken token)
+        {
+            if (token.IsCancellationRequested) return;
+
+            try
+            {
+                string[] subDirs = Directory.GetDirectories(dir);
+                foreach (var sub in subDirs)
+                {
+                    FindEmptyDirectoriesRecursive(sub, token);
+                }
+
+                string[] currentSubDirs = Directory.GetDirectories(dir);
+                string[] currentFiles = Directory.GetFiles(dir);
+
+                if (currentSubDirs.Length == 0 && currentFiles.Length == 0)
+                {
+                    EmptyDirectories.Add(new EmptyDirectoryInfo
+                    {
+                        Path = dir,
+                        IsSystemProtected = SystemSafety.IsSystemProtected(dir),
+                        LastModified = Directory.GetLastWriteTime(dir)
+                    });
+                }
+            }
+            catch { }
+        }
+
         private void AnalyzeCommonFolders()
         {
-            Dictionary<string, HashSet<string>> folderFiles = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, Dictionary<string, int>> pairCounts = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
             Dictionary<string, long> folderWasted = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var group in DuplicateGroups)
+            foreach (var g in DuplicateGroups)
             {
-                foreach (var f in group.Files)
+                for (int i = 0; i < g.Files.Count; i++)
                 {
-                    if (!folderFiles.ContainsKey(f.DirectoryPath))
+                    for (int j = 0; j < g.Files.Count; j++)
                     {
-                        folderFiles[f.DirectoryPath] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        folderWasted[f.DirectoryPath] = 0;
+                        if (i == j) continue;
+                        string dirA = g.Files[i].DirectoryPath;
+                        string dirB = g.Files[j].DirectoryPath;
+
+                        if (string.Equals(dirA, dirB, StringComparison.OrdinalIgnoreCase)) continue;
+
+                        if (!pairCounts.ContainsKey(dirA))
+                            pairCounts[dirA] = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                        if (!pairCounts[dirA].ContainsKey(dirB))
+                            pairCounts[dirA][dirB] = 0;
+
+                        pairCounts[dirA][dirB]++;
+
+                        if (!folderWasted.ContainsKey(dirA))
+                            folderWasted[dirA] = 0;
+                        folderWasted[dirA] += g.Size;
                     }
-                    folderFiles[f.DirectoryPath].Add(f.FileName);
-                    folderWasted[f.DirectoryPath] += group.Size;
                 }
             }
 
-            foreach (var kvA in folderFiles)
+            HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var kvA in pairCounts)
             {
                 string dirA = kvA.Key;
-                var filesA = kvA.Value;
-
-                foreach (var kvB in folderFiles)
+                foreach (var kvB in kvA.Value)
                 {
-                    if (string.Equals(dirA, kvB.Key, StringComparison.OrdinalIgnoreCase)) continue;
                     string dirB = kvB.Key;
-                    var filesB = kvB.Value;
+                    int sharedCount = kvB.Value;
 
-                    int matchCount = 0;
-                    foreach (var fn in filesA)
+                    if (sharedCount >= 2)
                     {
-                        if (filesB.Contains(fn)) matchCount++;
-                    }
+                        string pairKey = string.Compare(dirA, dirB, StringComparison.OrdinalIgnoreCase) < 0
+                            ? dirA + "|||" + dirB
+                            : dirB + "|||" + dirA;
 
-                    if (matchCount > 0 && (matchCount == filesA.Count || matchCount >= 3))
-                    {
-                        bool isComplete = (matchCount == filesA.Count);
-                        string rec;
-                        if (isComplete)
-                        {
-                            rec = string.Format("Todos os {0} arquivos duplicados desta pasta existem em '{1}'. Sugere-se excluir as copias desta pasta.", matchCount, dirB);
-                        }
-                        else
-                        {
-                            rec = string.Format("{0} arquivos duplicados compartilhados com '{1}'.", matchCount, dirB);
-                        }
+                        if (seen.Contains(pairKey)) continue;
+                        seen.Add(pairKey);
 
-                        CommonFolderSuggestion sug = new CommonFolderSuggestion();
-                        sug.DuplicateFolder = dirA;
-                        sug.PrimaryFolder = dirB;
-                        sug.DuplicateCount = matchCount;
-                        sug.WastedBytes = folderWasted.ContainsKey(dirA) ? folderWasted[dirA] : 0;
-                        sug.IsCompleteDuplicate = isComplete;
-                        sug.Recommendation = rec;
+                        long wasted = folderWasted.ContainsKey(dirA) ? folderWasted[dirA] : 0;
+
+                        CommonFolderSuggestion sug = new CommonFolderSuggestion
+                        {
+                            DuplicateFolder = dirA,
+                            PrimaryFolder = dirB,
+                            DuplicateCount = sharedCount,
+                            WastedBytes = wasted,
+                            IsCompleteDuplicate = false,
+                            Recommendation = string.Format("Esta pasta compartilha {0} arquivos identicos com '{1}'. Sugestao: Excluir a copia redundante.", sharedCount, Path.GetFileName(dirB))
+                        };
                         FolderSuggestions.Add(sug);
-                        break;
+                    }
+                }
+            }
+
+            FolderSuggestions.Sort(delegate(CommonFolderSuggestion a, CommonFolderSuggestion b) { return b.DuplicateCount.CompareTo(a.DuplicateCount); });
+        }
+    }
+
+    /// <summary>
+    /// Dialog for selecting multiple folders with treeview and drive pickers.
+    /// </summary>
+    public class MultiFolderSelectorForm : Form
+    {
+        private TreeView treeDrives;
+        private ListBox lbSelected;
+        private Button btnBrowseFolderAndSubfolders;
+        private Button btnOk;
+        private Button btnCancel;
+
+        public List<string> SelectedFolders { get; private set; }
+
+        public MultiFolderSelectorForm(string initialFolder)
+        {
+            SelectedFolders = new List<string>();
+            InitializeComponent(initialFolder);
+        }
+
+        private void InitializeComponent(string initialFolder)
+        {
+            this.Text = "Selecionar Multiplas Pastas - DupFinder-Neo v1.0 (by @heitorsecurity)";
+            this.Size = new Size(720, 520);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
+
+            TableLayoutPanel layout = new TableLayoutPanel();
+            layout.Dock = DockStyle.Fill;
+            layout.RowCount = 3;
+            layout.ColumnCount = 2;
+            layout.Padding = new Padding(10);
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
+            this.Controls.Add(layout);
+
+            // Header instructions
+            Label lblInstr = new Label();
+            lblInstr.Text = "Marque as pastas desejadas na arvore ou adicione subpastas de uma vez:";
+            lblInstr.Dock = DockStyle.Fill;
+            lblInstr.TextAlign = ContentAlignment.MiddleLeft;
+            layout.Controls.Add(lblInstr, 0, 0);
+            layout.SetColumnSpan(lblInstr, 2);
+
+            // Left: TreeView with checkboxes
+            treeDrives = new TreeView();
+            treeDrives.Dock = DockStyle.Fill;
+            treeDrives.CheckBoxes = true;
+            treeDrives.BeforeExpand += TreeDrives_BeforeExpand;
+            treeDrives.AfterCheck += TreeDrives_AfterCheck;
+            layout.Controls.Add(treeDrives, 0, 1);
+
+            // Right: Selected list & helper buttons
+            Panel pnlRight = new Panel();
+            pnlRight.Dock = DockStyle.Fill;
+            layout.Controls.Add(pnlRight, 1, 1);
+
+            Label lblSelTitle = new Label();
+            lblSelTitle.Text = "Pastas selecionadas para adicionar:";
+            lblSelTitle.Dock = DockStyle.Top;
+            lblSelTitle.Height = 22;
+
+            lbSelected = new ListBox();
+            lbSelected.Dock = DockStyle.Fill;
+
+            FlowLayoutPanel pnlQuick = new FlowLayoutPanel();
+            pnlQuick.Dock = DockStyle.Bottom;
+            pnlQuick.Height = 65;
+
+            btnBrowseFolderAndSubfolders = new Button();
+            btnBrowseFolderAndSubfolders.Text = "Adicionar Todas as Subpastas de Uma Pasta...";
+            btnBrowseFolderAndSubfolders.Width = 280;
+            btnBrowseFolderAndSubfolders.Height = 28;
+            btnBrowseFolderAndSubfolders.Click += BtnBrowseFolderAndSubfolders_Click;
+
+            Button btnRemoveSelected = new Button();
+            btnRemoveSelected.Text = "Remover da Lista";
+            btnRemoveSelected.Width = 135;
+            btnRemoveSelected.Height = 26;
+            btnRemoveSelected.Click += delegate { if (lbSelected.SelectedIndex >= 0) lbSelected.Items.RemoveAt(lbSelected.SelectedIndex); };
+
+            Button btnClear = new Button();
+            btnClear.Text = "Limpar Tudo";
+            btnClear.Width = 135;
+            btnClear.Height = 26;
+            btnClear.Click += delegate { lbSelected.Items.Clear(); };
+
+            pnlQuick.Controls.AddRange(new Control[] { btnBrowseFolderAndSubfolders, btnRemoveSelected, btnClear });
+            pnlRight.Controls.AddRange(new Control[] { lbSelected, pnlQuick, lblSelTitle });
+
+            // Bottom action buttons
+            FlowLayoutPanel pnlBottom = new FlowLayoutPanel();
+            pnlBottom.Dock = DockStyle.Fill;
+            pnlBottom.FlowDirection = FlowDirection.RightToLeft;
+
+            btnCancel = new Button();
+            btnCancel.Text = "Cancelar";
+            btnCancel.DialogResult = DialogResult.Cancel;
+            btnCancel.Width = 100;
+            btnCancel.Height = 32;
+
+            btnOk = new Button();
+            btnOk.Text = "Adicionar Selecionadas";
+            btnOk.Width = 180;
+            btnOk.Height = 32;
+            btnOk.BackColor = Color.LightSteelBlue;
+            btnOk.Click += (s, e) =>
+            {
+                foreach (var item in lbSelected.Items)
+                {
+                    string p = item.ToString();
+                    if (!SelectedFolders.Contains(p)) SelectedFolders.Add(p);
+                }
+                this.DialogResult = DialogResult.OK;
+                this.Close();
+            };
+
+            pnlBottom.Controls.AddRange(new Control[] { btnCancel, btnOk });
+            layout.Controls.Add(pnlBottom, 0, 2);
+            layout.SetColumnSpan(pnlBottom, 2);
+
+            PopulateDrives();
+        }
+
+        private void PopulateDrives()
+        {
+            treeDrives.Nodes.Clear();
+            try
+            {
+                foreach (DriveInfo d in DriveInfo.GetDrives())
+                {
+                    if (d.IsReady)
+                    {
+                        TreeNode driveNode = new TreeNode(d.Name + " (" + d.VolumeLabel + ")")
+                        {
+                            Tag = d.RootDirectory.FullName
+                        };
+                        driveNode.Nodes.Add(new TreeNode("Carregando..."));
+                        treeDrives.Nodes.Add(driveNode);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void TreeDrives_BeforeExpand(object sender, TreeViewCancelEventArgs e)
+        {
+            TreeNode node = e.Node;
+            if (node.Nodes.Count == 1 && node.Nodes[0].Text == "Carregando...")
+            {
+                node.Nodes.Clear();
+                string path = node.Tag as string;
+                if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+                {
+                    try
+                    {
+                        string[] subDirs = Directory.GetDirectories(path);
+                        foreach (string sub in subDirs)
+                        {
+                            if (!SystemSafety.IsSystemProtected(sub))
+                            {
+                                TreeNode subNode = new TreeNode(Path.GetFileName(sub)) { Tag = sub };
+                                subNode.Nodes.Add(new TreeNode("Carregando..."));
+                                node.Nodes.Add(subNode);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        private void TreeDrives_AfterCheck(object sender, TreeViewEventArgs e)
+        {
+            string path = e.Node.Tag as string;
+            if (string.IsNullOrEmpty(path)) return;
+
+            if (e.Node.Checked)
+            {
+                if (!lbSelected.Items.Contains(path)) lbSelected.Items.Add(path);
+            }
+            else
+            {
+                lbSelected.Items.Remove(path);
+            }
+        }
+
+        private void BtnBrowseFolderAndSubfolders_Click(object sender, EventArgs e)
+        {
+            using (FolderBrowserDialog fbd = new FolderBrowserDialog())
+            {
+                fbd.Description = "Selecione uma pasta principal para adicionar todas as subpastas:";
+                if (fbd.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        string root = fbd.SelectedPath;
+                        if (!lbSelected.Items.Contains(root)) lbSelected.Items.Add(root);
+
+                        string[] subs = Directory.GetDirectories(root);
+                        foreach (string sub in subs)
+                        {
+                            if (!SystemSafety.IsSystemProtected(sub) && !lbSelected.Items.Contains(sub))
+                            {
+                                lbSelected.Items.Add(sub);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Erro ao listar subpastas: " + ex.Message);
                     }
                 }
             }
@@ -457,12 +796,14 @@ namespace DupFinderNeo
     public class MainForm : Form
     {
         private ListBox lbPaths;
-        private Button btnAddPath, btnRemovePath, btnClearPaths;
+        private Button btnAddPath, btnAddMultiplePaths, btnRemovePath, btnClearPaths;
         private RadioButton rbDupsOnly, rbBoth, rbEmptyOnly;
         private CheckBox cbProtectSystem, cbRecursive, cbHidden;
         private Button btnStart, btnCancel;
-        private ProgressBar progressBar;
+
+        private PercentageProgressBar progressBar;
         private Label lblStatus;
+        private Label lblElapsedTimer;
 
         private TabControl tabControl;
         private ListView lvDuplicates;
@@ -481,16 +822,58 @@ namespace DupFinderNeo
         private CancellationTokenSource cts;
         private BackgroundWorker worker;
 
+        private Stopwatch scanStopwatch = new Stopwatch();
+        private System.Windows.Forms.Timer uiTimer;
+
+        private string lastFolder = string.Empty;
+
         public MainForm()
         {
+            LoadSettings();
             InitializeComponent();
+        }
+
+        private void LoadSettings()
+        {
+            try
+            {
+                string appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DupFinder-Neo");
+                string file = Path.Combine(appData, "last_folder.txt");
+                if (File.Exists(file))
+                {
+                    string saved = File.ReadAllText(file).Trim();
+                    if (!string.IsNullOrEmpty(saved) && Directory.Exists(saved))
+                    {
+                        lastFolder = saved;
+                    }
+                }
+            }
+            catch { }
+
+            if (string.IsNullOrEmpty(lastFolder))
+            {
+                lastFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            }
+        }
+
+        private void SaveLastFolder(string folder)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(folder)) return;
+                lastFolder = folder;
+                string appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DupFinder-Neo");
+                if (!Directory.Exists(appData)) Directory.CreateDirectory(appData);
+                File.WriteAllText(Path.Combine(appData, "last_folder.txt"), folder);
+            }
+            catch { }
         }
 
         private void InitializeComponent()
         {
-            this.Text = "DupFinder-Neo (Windows XP ate 11)";
-            this.Size = new Size(1020, 720);
-            this.MinimumSize = new Size(880, 600);
+            this.Text = "DupFinder-Neo v1.0 (by @heitorsecurity)";
+            this.Size = new Size(1060, 740);
+            this.MinimumSize = new Size(900, 620);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
             try { this.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
@@ -502,21 +885,21 @@ namespace DupFinderNeo
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 185)); // Top options
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Results
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));  // Actions
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));  // Status bar
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));  // Status bar
             this.Controls.Add(mainLayout);
 
             // GroupBox Configuration
             GroupBox gbConfig = new GroupBox();
-            gbConfig.Text = "Configuracoes da Varredura (Windows XP ate Windows 11)";
+            gbConfig.Text = "Configuracoes da Varredura - DupFinder-Neo v1.0 (by @heitorsecurity)";
             gbConfig.Dock = DockStyle.Fill;
             mainLayout.Controls.Add(gbConfig, 0, 0);
 
             TableLayoutPanel configLayout = new TableLayoutPanel();
             configLayout.Dock = DockStyle.Fill;
             configLayout.ColumnCount = 3;
-            configLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            configLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32));
-            configLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18));
+            configLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52));
+            configLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 31));
+            configLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 17));
             gbConfig.Controls.Add(configLayout);
 
             // Left: Paths List
@@ -537,14 +920,15 @@ namespace DupFinderNeo
             pnlPathBtns.Height = 32;
 
             btnAddPath = new Button(); btnAddPath.Text = "+ Adicionar Pasta..."; btnAddPath.AutoSize = true;
+            btnAddMultiplePaths = new Button(); btnAddMultiplePaths.Text = "+ Varias Pastas..."; btnAddMultiplePaths.AutoSize = true; btnAddMultiplePaths.BackColor = Color.AliceBlue;
             btnRemovePath = new Button(); btnRemovePath.Text = "Remover"; btnRemovePath.AutoSize = true;
             btnClearPaths = new Button(); btnClearPaths.Text = "Limpar"; btnClearPaths.AutoSize = true;
-            pnlPathBtns.Controls.AddRange(new Control[] { btnAddPath, btnRemovePath, btnClearPaths });
+            pnlPathBtns.Controls.AddRange(new Control[] { btnAddPath, btnAddMultiplePaths, btnRemovePath, btnClearPaths });
             pnlPaths.Controls.AddRange(new Control[] { lbPaths, pnlPathBtns, lblPaths });
 
             // Middle: Mode selection
             GroupBox gbMode = new GroupBox();
-            gbMode.Text = "O que pesquisar logo no inicio:";
+            gbMode.Text = "Modo de busca inicial:";
             gbMode.Dock = DockStyle.Fill;
 
             FlowLayoutPanel pnlModes = new FlowLayoutPanel();
@@ -654,25 +1038,39 @@ namespace DupFinderNeo
             });
             mainLayout.Controls.Add(pnlActions, 0, 2);
 
-            // Bottom Status bar
+            // Bottom Status bar with PercentageProgressBar and ElapsedTimer
             TableLayoutPanel pnlBottom = new TableLayoutPanel();
             pnlBottom.Dock = DockStyle.Fill;
-            pnlBottom.ColumnCount = 2;
-            pnlBottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70));
-            pnlBottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
+            pnlBottom.ColumnCount = 3;
+            pnlBottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            pnlBottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
+            pnlBottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15));
 
             lblStatus = new Label();
             lblStatus.Text = "Aguardando selecao de pastas...";
             lblStatus.Dock = DockStyle.Fill;
             lblStatus.TextAlign = ContentAlignment.MiddleLeft;
 
-            progressBar = new ProgressBar();
+            progressBar = new PercentageProgressBar();
             progressBar.Dock = DockStyle.Fill;
-            progressBar.Height = 20;
+            progressBar.Height = 24;
+
+            lblElapsedTimer = new Label();
+            lblElapsedTimer.Text = "⏱️ 00:00:00";
+            lblElapsedTimer.Dock = DockStyle.Fill;
+            lblElapsedTimer.TextAlign = ContentAlignment.MiddleCenter;
+            lblElapsedTimer.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            lblElapsedTimer.ForeColor = Color.DarkSlateBlue;
 
             pnlBottom.Controls.Add(lblStatus, 0, 0);
             pnlBottom.Controls.Add(progressBar, 1, 0);
+            pnlBottom.Controls.Add(lblElapsedTimer, 2, 0);
             mainLayout.Controls.Add(pnlBottom, 0, 3);
+
+            // Setup timer
+            uiTimer = new System.Windows.Forms.Timer();
+            uiTimer.Interval = 250;
+            uiTimer.Tick += UiTimer_Tick;
 
             // Hook Events
             btnAddPath.Click += delegate(object s, EventArgs e)
@@ -680,10 +1078,33 @@ namespace DupFinderNeo
                 using (FolderBrowserDialog fbd = new FolderBrowserDialog())
                 {
                     fbd.Description = "Selecione uma pasta para pesquisar duplicatas ou pastas vazias:";
+                    if (!string.IsNullOrEmpty(lastFolder) && Directory.Exists(lastFolder))
+                    {
+                        fbd.SelectedPath = lastFolder;
+                    }
                     if (fbd.ShowDialog() == DialogResult.OK)
                     {
+                        SaveLastFolder(fbd.SelectedPath);
                         if (!lbPaths.Items.Contains(fbd.SelectedPath))
                             lbPaths.Items.Add(fbd.SelectedPath);
+                    }
+                }
+            };
+
+            btnAddMultiplePaths.Click += delegate(object s, EventArgs e)
+            {
+                using (MultiFolderSelectorForm form = new MultiFolderSelectorForm(lastFolder))
+                {
+                    if (form.ShowDialog() == DialogResult.OK)
+                    {
+                        foreach (string p in form.SelectedFolders)
+                        {
+                            if (!lbPaths.Items.Contains(p))
+                            {
+                                lbPaths.Items.Add(p);
+                                SaveLastFolder(p);
+                            }
+                        }
                     }
                 }
             };
@@ -704,11 +1125,20 @@ namespace DupFinderNeo
             btnDeleteSelectedEmptyDirs.Click += BtnDeleteSelectedEmptyDirs_Click;
             btnDeleteAllEmptyDirs.Click += BtnDeleteAllEmptyDirs_Click;
 
-            // Add default user directory
+            // Add default user directory if exists
             string userDocs = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             if (!string.IsNullOrEmpty(userDocs) && Directory.Exists(userDocs))
             {
                 lbPaths.Items.Add(userDocs);
+            }
+        }
+
+        private void UiTimer_Tick(object sender, EventArgs e)
+        {
+            if (scanStopwatch.IsRunning)
+            {
+                TimeSpan elapsed = scanStopwatch.Elapsed;
+                lblElapsedTimer.Text = string.Format("⏱️ {0:00}:{1:00}:{2:00}", (int)elapsed.TotalHours, elapsed.Minutes, elapsed.Seconds);
             }
         }
 
@@ -720,23 +1150,28 @@ namespace DupFinderNeo
                 return;
             }
 
-            engine.SearchPaths.Clear();
-            foreach (var item in lbPaths.Items) engine.SearchPaths.Add(item.ToString());
+            engine.TargetPaths.Clear();
+            foreach (var item in lbPaths.Items)
+            {
+                engine.TargetPaths.Add(item.ToString());
+            }
 
             if (rbDupsOnly.Checked) engine.Mode = ScanMode.DuplicatesOnly;
             else if (rbEmptyOnly.Checked) engine.Mode = ScanMode.EmptyDirsOnly;
             else engine.Mode = ScanMode.Both;
 
-            engine.ProtectSystemDirs = cbProtectSystem.Checked;
-            engine.RecurseSubdirectories = cbRecursive.Checked;
+            engine.ProtectSystem = cbProtectSystem.Checked;
+            engine.Recursive = cbRecursive.Checked;
             engine.IncludeHidden = cbHidden.Checked;
 
             btnStart.Enabled = false;
             btnCancel.Enabled = true;
             progressBar.Value = 0;
-            lvDuplicates.Items.Clear();
-            lvCommonFolders.Items.Clear();
-            lvEmptyDirs.Items.Clear();
+            progressBar.CustomText = "0%";
+
+            scanStopwatch.Reset();
+            scanStopwatch.Start();
+            uiTimer.Start();
 
             cts = new CancellationTokenSource();
             worker = new BackgroundWorker();
@@ -748,13 +1183,24 @@ namespace DupFinderNeo
                 else lblStatus.Text = msg;
             };
 
-            engine.OnProgressUpdate += delegate(int cur, int total)
+            engine.OnProgressUpdate += delegate(int cur, int total, string custom)
             {
                 if (total <= 0) return;
                 int pct = (int)((long)cur * 100 / total);
                 if (pct < 0) pct = 0; if (pct > 100) pct = 100;
-                if (this.InvokeRequired) this.BeginInvoke(new Action(delegate { progressBar.Value = pct; }));
-                else progressBar.Value = pct;
+                if (this.InvokeRequired)
+                {
+                    this.BeginInvoke(new Action(delegate
+                    {
+                        progressBar.Value = pct;
+                        progressBar.CustomText = custom;
+                    }));
+                }
+                else
+                {
+                    progressBar.Value = pct;
+                    progressBar.CustomText = custom;
+                }
             };
 
             worker.DoWork += delegate(object s, DoWorkEventArgs ea)
@@ -764,9 +1210,16 @@ namespace DupFinderNeo
 
             worker.RunWorkerCompleted += delegate(object s, RunWorkerCompletedEventArgs ea)
             {
+                scanStopwatch.Stop();
+                uiTimer.Stop();
+
+                TimeSpan elapsed = scanStopwatch.Elapsed;
+                lblElapsedTimer.Text = string.Format("⏱️ {0:00}:{1:00}:{2:00}", (int)elapsed.TotalHours, elapsed.Minutes, elapsed.Seconds);
+
                 btnStart.Enabled = true;
                 btnCancel.Enabled = false;
                 progressBar.Value = 100;
+                progressBar.CustomText = "100% Concluido";
 
                 PopulateResults();
             };
@@ -798,7 +1251,6 @@ namespace DupFinderNeo
                 groupItem.Font = new Font(this.Font, FontStyle.Bold);
                 lvDuplicates.Items.Add(groupItem);
 
-                // Files in group
                 for (int i = 0; i < g.Files.Count; i++)
                 {
                     var f = g.Files[i];
@@ -810,7 +1262,6 @@ namespace DupFinderNeo
                         f.LastModified.ToString("yyyy-MM-dd HH:mm")
                     });
                     fItem.Tag = f;
-                    // Auto-check duplicates except the first one (primary)
                     if (i > 0) fItem.Checked = true;
                     lvDuplicates.Items.Add(fItem);
                 }
@@ -861,18 +1312,18 @@ namespace DupFinderNeo
             }
             lvEmptyDirs.EndUpdate();
 
-            lblSummary.Text = string.Format("Resultado: {0} duplicatas ({1} desperdicados) | {2} sugestoes de pastas | {3} pastas vazias.",
-                totalDupFiles, FormatBytes(totalWasted), engine.FolderSuggestions.Count, engine.EmptyDirectories.Count);
+            lblSummary.Text = string.Format("Resultado: {0:N0} duplicatas encontradas ({1} desperdicados) | {2:N0} pastas vazias detectadas | Tempo: {3:00}:{4:00}",
+                totalDupFiles, FormatBytes(totalWasted), engine.EmptyDirectories.Count, scanStopwatch.Elapsed.Minutes, scanStopwatch.Elapsed.Seconds);
         }
 
         private void BtnDeleteSelectedFiles_Click(object sender, EventArgs e)
         {
-            List<ListViewItem> toDelete = new List<ListViewItem>();
+            List<FileCandidate> toDelete = new List<FileCandidate>();
             foreach (ListViewItem item in lvDuplicates.Items)
             {
                 if (item.Checked && item.Tag is FileCandidate)
                 {
-                    toDelete.Add(item);
+                    toDelete.Add((FileCandidate)item.Tag);
                 }
             }
 
@@ -882,55 +1333,52 @@ namespace DupFinderNeo
                 return;
             }
 
-            if (MessageBox.Show(string.Format("Deseja realmente excluir permanentemente os {0} arquivos duplicados marcados?", toDelete.Count),
-                "Confirmacao de Exclusao", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+            if (MessageBox.Show(string.Format("Tem certeza que deseja excluir permanentemente {0} arquivos duplicados marcados?\r\nEsta acao nao pode ser desfeita.", toDelete.Count),
+                "Confirmar Exclusao", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
             {
                 return;
             }
 
             int deleted = 0;
-            foreach (var item in toDelete)
+            foreach (var f in toDelete)
             {
-                FileCandidate f = item.Tag as FileCandidate;
                 try
                 {
                     if (File.Exists(f.FullPath))
                     {
                         File.Delete(f.FullPath);
                         deleted++;
-                        lvDuplicates.Items.Remove(item);
                     }
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(string.Format("Erro ao apagar '{0}': {1}", f.FullPath, ex.Message), "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+                catch { }
             }
-            MessageBox.Show(string.Format("{0} arquivos foram apagados com sucesso!", deleted), "Concluido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            MessageBox.Show(string.Format("{0} arquivos duplicados foram excluidos com sucesso!", deleted), "Concluido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            PopulateResults();
         }
 
         private void BtnOpenFolder_Click(object sender, EventArgs e)
         {
-            string dir = null;
+            string path = null;
             if (tabControl.SelectedTab == tabControl.TabPages[0] && lvDuplicates.SelectedItems.Count > 0)
             {
-                var f = lvDuplicates.SelectedItems[0].Tag as FileCandidate;
-                if (f != null) dir = f.DirectoryPath;
+                var tag = lvDuplicates.SelectedItems[0].Tag as FileCandidate;
+                if (tag != null) path = tag.DirectoryPath;
             }
             else if (tabControl.SelectedTab == tabControl.TabPages[1] && lvCommonFolders.SelectedItems.Count > 0)
             {
-                var s = lvCommonFolders.SelectedItems[0].Tag as CommonFolderSuggestion;
-                if (s != null) dir = s.DuplicateFolder;
+                var sug = lvCommonFolders.SelectedItems[0].Tag as CommonFolderSuggestion;
+                if (sug != null) path = sug.DuplicateFolder;
             }
             else if (tabControl.SelectedTab == tabControl.TabPages[2] && lvEmptyDirs.SelectedItems.Count > 0)
             {
                 var ed = lvEmptyDirs.SelectedItems[0].Tag as EmptyDirectoryInfo;
-                if (ed != null) dir = ed.Path;
+                if (ed != null) path = ed.Path;
             }
 
-            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+            if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
             {
-                Process.Start("explorer.exe", dir);
+                Process.Start("explorer.exe", path);
             }
         }
 
@@ -938,115 +1386,120 @@ namespace DupFinderNeo
         {
             if (lvCommonFolders.SelectedItems.Count == 0)
             {
-                MessageBox.Show("Selecione uma pasta sugerida na aba 'Pastas em Comum & Sugestoes' primeiro.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Selecione uma pasta sugerida na lista primeiro.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             var sug = lvCommonFolders.SelectedItems[0].Tag as CommonFolderSuggestion;
             if (sug == null) return;
 
-            int marked = 0;
+            int checkedCount = 0;
             foreach (ListViewItem item in lvDuplicates.Items)
             {
-                var f = item.Tag as FileCandidate;
-                if (f != null)
+                var fc = item.Tag as FileCandidate;
+                if (fc != null)
                 {
-                    if (f.DirectoryPath.StartsWith(sug.DuplicateFolder, StringComparison.OrdinalIgnoreCase))
+                    if (fc.DirectoryPath.StartsWith(sug.DuplicateFolder, StringComparison.OrdinalIgnoreCase))
                     {
                         item.Checked = true;
-                        marked++;
+                        checkedCount++;
                     }
-                    else if (f.DirectoryPath.StartsWith(sug.PrimaryFolder, StringComparison.OrdinalIgnoreCase))
+                    else if (fc.DirectoryPath.StartsWith(sug.PrimaryFolder, StringComparison.OrdinalIgnoreCase))
                     {
-                        item.Checked = false; // preserve primary!
+                        item.Checked = false;
                     }
                 }
             }
 
-            tabControl.SelectedTab = tabControl.TabPages[0];
-            MessageBox.Show(string.Format("Foram marcados {0} arquivos da pasta duplicada '{1}' para exclusao (preservando '{2}').",
-                marked, sug.DuplicateFolder, sug.PrimaryFolder), "Sugestao Aplicada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            tabControl.SelectedIndex = 0;
+            MessageBox.Show(string.Format("Foram marcados {0} arquivos da pasta clonada '{1}' para exclusao, preservando a pasta original.", checkedCount, sug.DuplicateFolder), "Sugestao Aplicada", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void BtnDeleteSelectedEmptyDirs_Click(object sender, EventArgs e)
         {
-            List<ListViewItem> toDelete = new List<ListViewItem>();
+            List<EmptyDirectoryInfo> toDelete = new List<EmptyDirectoryInfo>();
             foreach (ListViewItem item in lvEmptyDirs.Items)
             {
                 if (item.Checked && item.Tag is EmptyDirectoryInfo)
                 {
-                    toDelete.Add(item);
+                    var ed = (EmptyDirectoryInfo)item.Tag;
+                    if (!ed.IsSystemProtected) toDelete.Add(ed);
                 }
             }
 
             if (toDelete.Count == 0)
             {
-                MessageBox.Show("Marque as pastas vazias que deseja excluir.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Nenhuma pasta vazia desprotegida selecionada.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            if (MessageBox.Show(string.Format("Deseja excluir as {0} pastas vazias selecionadas?", toDelete.Count),
-                "Confirmacao", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            if (MessageBox.Show(string.Format("Deseja excluir {0} pastas vazias selecionadas?", toDelete.Count), "Confirmar Exclusao", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
                 return;
 
-            int deleted = 0;
-            foreach (var item in toDelete)
+            int count = 0;
+            foreach (var ed in toDelete)
             {
-                var ed = item.Tag as EmptyDirectoryInfo;
-                if (ed.IsSystemProtected && cbProtectSystem.Checked) continue;
-
                 try
                 {
                     if (Directory.Exists(ed.Path))
                     {
-                        Directory.Delete(ed.Path, false);
-                        deleted++;
-                        lvEmptyDirs.Items.Remove(item);
+                        Directory.Delete(ed.Path);
+                        count++;
                     }
                 }
                 catch { }
             }
-            MessageBox.Show(string.Format("{0} pastas vazias foram apagadas com sucesso!", deleted), "Concluido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            MessageBox.Show(string.Format("{0} pastas vazias foram excluidas com sucesso!", count), "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            lvEmptyDirs.Items.Clear();
         }
 
         private void BtnDeleteAllEmptyDirs_Click(object sender, EventArgs e)
         {
-            if (lvEmptyDirs.Items.Count == 0) return;
-
-            if (MessageBox.Show("Deseja excluir TODAS as pastas vazias que NAO pertencem ao sistema?",
-                "Confirmar Limpeza Total de Pastas Vazias", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
-                return;
-
-            int deleted = 0;
-            List<ListViewItem> removeList = new List<ListViewItem>();
-            foreach (ListViewItem item in lvEmptyDirs.Items)
+            List<EmptyDirectoryInfo> safeDirs = new List<EmptyDirectoryInfo>();
+            foreach (var ed in engine.EmptyDirectories)
             {
-                var ed = item.Tag as EmptyDirectoryInfo;
-                if (ed != null && !ed.IsSystemProtected)
-                {
-                    try
-                    {
-                        if (Directory.Exists(ed.Path))
-                        {
-                            Directory.Delete(ed.Path, false);
-                            deleted++;
-                            removeList.Add(item);
-                        }
-                    }
-                    catch { }
-                }
+                if (!ed.IsSystemProtected) safeDirs.Add(ed);
             }
 
-            foreach (var it in removeList) lvEmptyDirs.Items.Remove(it);
-            MessageBox.Show(string.Format("{0} pastas vazias foram apagadas!", deleted), "Concluido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (safeDirs.Count == 0)
+            {
+                MessageBox.Show("Nenhuma pasta vazia segura disponivel.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (MessageBox.Show(string.Format("Excluir TODAS as {0} pastas vazias identificadas como seguras?", safeDirs.Count), "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                return;
+
+            int count = 0;
+            foreach (var ed in safeDirs)
+            {
+                try
+                {
+                    if (Directory.Exists(ed.Path))
+                    {
+                        Directory.Delete(ed.Path);
+                        count++;
+                    }
+                }
+                catch { }
+            }
+
+            MessageBox.Show(string.Format("{0} pastas vazias seguras foram removidas!", count), "Concluido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            lvEmptyDirs.Items.Clear();
         }
 
-        private static string FormatBytes(long bytes)
+        private string FormatBytes(long bytes)
         {
-            if (bytes < 1024) return bytes + " B";
-            if (bytes < 1024 * 1024) return (bytes / 1024.0).ToString("F2") + " KB";
-            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024.0 * 1024.0)).ToString("F2") + " MB";
-            return (bytes / (1024.0 * 1024.0 * 1024.0)).ToString("F2") + " GB";
+            string[] units = { "B", "KB", "MB", "GB", "TB" };
+            double val = bytes;
+            int u = 0;
+            while (val >= 1024 && u < units.Length - 1)
+            {
+                val /= 1024;
+                u++;
+            }
+            return string.Format("{0:0.##} {1}", val, units[u]);
         }
 
         [STAThread]
@@ -1058,4 +1511,3 @@ namespace DupFinderNeo
         }
     }
 }
-

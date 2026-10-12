@@ -1,6 +1,6 @@
 # Mapa Arquitetural e Especificacao Tecnica (SOT - Single Source of Truth)
-**Projeto:** DupFinder-Neo  
-**Versao:** 0.9.0  
+**Projeto:** DupFinder-Neo (by @heitorsecurity)  
+**Versao:** v1.0 (1.0.0)  
 **Data:** 2026-10-12  
 **Finalidade:** Guia completo de arquitetura, tipos de dados, algoritmos e modelo de implementacao para portabilidade agnostica de linguagem (especialmente focado em **Rust**, Go ou C++ moderno).
 
@@ -8,11 +8,12 @@
 
 ## 1. Visao Geral e Principios Fundamentais
 
-O **DupFinder-Neo** e um motor de deteccao de duplicatas e saneamento de diretorios projetado com quatro principios:
-1. **Agilidade Extrema:** Evitar o calculo desnecessario de hashes pesados (SHA-256/MD5) sobre arquivos unicos ou que diferem nos primeiros blocos.
+O **DupFinder-Neo v1.0 (by @heitorsecurity)** e um motor de deteccao de duplicatas, monitoramento em tempo real e saneamento de diretorios projetado com cinco principios:
+1. **Agilidade Extrema:** Evitar o calculo desnecessario de hashes pesados (SHA-256/MD5) sobre arquivos unicos ou que diferem nos primeiros blocos via amostragem FNV-1a 64-bit.
 2. **Acuracia Matematica Absoluta (Zero Falso Positivo):** Todo arquivo considerado duplicado passa por validacao completa antes de ser classificado.
-3. **Inteligencia de Pastas (Common Folders):** Em vez de tratar arquivos duplicados de forma isolada, o sistema reconhece quando pastas inteiras sao copias/backups redundantes de outras e sugere a exclusao do lote.
+3. **Inteligencia de Pastas (Common Folders):** Em vez de tratar arquivos duplicados de forma isolada, o sistema reconhece quando pastas inteiras sao copias redundantes de outras e sugere a exclusao do lote.
 4. **Higienizacao Segura de Pastas Vazias:** Permite localizar e remover pastas orfas vazias, aplicando protecao estrita contra pastas criticas do sistema operacional.
+5. **Monitoramento em Tempo Real Opcional (Estilo 'Everything'):** Servico leve em background com deteccao instantanea de arquivos duplicados recem-criados e alerta nativo no Windows.
 
 ---
 

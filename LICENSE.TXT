@@ -1,3 +1,22 @@
+================================================================================
+DupFinder-Neo v1.0 (by @heitorsecurity)
+================================================================================
+Original Work:
+  Copyright (C) 2004-2006 Patrick De Smet (GNU GPL v2)
+
+Modernization, Extensions and New Components:
+  Copyright (C) 2026 @heitorsecurity
+  - Modernized C++ scan engine with FNV-1a 64-bit fast sample hashing.
+  - Safe empty directory detection and bottom-up removal engine.
+  - Common folders mirror detection and smart suggestion algorithm.
+  - Windows XP through Windows 11 native multithreaded GUI with elapsed timer.
+  - Real-time duplicate watcher and background indexer with toast/tray notifications.
+  - Native MSI and Setup wizard installers with clean uninstallation routine.
+  - Single Source of Truth (SOT) Rust reference engine and portability architecture.
+
+Licensed under the GNU General Public License, Version 2 (see below).
+================================================================================
+
 The GNU General Public License (GPL)
 Version 2, June 1991
 
