@@ -235,6 +235,39 @@
           <li>Execucao bem-sucedida de <code>build-msi.ps1</code> com criacao integra do pacote <code>dupfinder-neo.msi</code> contendo tabela <code>Icon</code> e data.cab.</li>
         </ul>
       </section>
+
+      <section>
+        <h3>2026-10-13 - Elevacao para Versao v1.1, Confirmacao Previa com Calculo de MB/GB, Relatorios em TXT com Arquivo Pai e Icone Duplicate_Files_Finder.ico</h3>
+        <p><strong>Evidence level:</strong> Current source/config, Execution log, Runtime/data artifact, User-provided context.</p>
+
+        <h4>Included</h4>
+        <ul>
+          <li>Integrado modelo de dados <code>DuplicateItemTag</code> e <code>DeletionRecord</code> em <code>src-win/DupFinderNeo.cs</code> para rastrear associacao grupo/arquivo e identificar com exatidao o arquivo pai preservado no sistema operacional.</li>
+          <li>Implementada rotina de confirmacao obrigatoria previa antes de exclusoes: carrega e exibe expressamente ao usuario a contagem exata de arquivos ou pastas marcadas e o espaco em disco total que sera liberado (formatado em B, KB, MB, GB e bytes brutos).</li>
+          <li>Implementada geracao automatica de relatorio em arquivo texto (<code>.txt</code> em UTF-8) persistido no diretorio de historicos do usuario em <code>%APPDATA%\DupFinder-Neo\HistoricosDelecoes\</code> (com fallback para diretorio da aplicacao se necessario).</li>
+          <li>Formatado o relatorio de duplicatas (<code>Relatorio_Delecao_Duplicatas_yyyyMMdd_HHmmss.txt</code>) detalhando: nome do arquivo excluido, caminho completo com extensao, tamanho formatado e em bytes, data de criacao, data de modificacao, hash SHA-256 e indicacao formal do <strong>Arquivo Pai (referencia principal preservada)</strong> com respectivo caminho e carimbo de data/hora.</li>
+          <li>Adicionado botao visual <code>📁 Historico de Delecoes...</code> (<code>btnHistory</code>) na toolbar da aplicacao com abertura direta da pasta de relatorios no Windows Explorer.</li>
+          <li>Adicionada mensagem de conclusao pos-delecao que calcula o espaco efetivamente liberado e oferece a opcao de abrir o relatorio recem-gerado imediatamente no Bloco de Notas (<code>notepad.exe</code>).</li>
+          <li>Implementado sistema equivalente de relatorio descritivo para exclusao de pastas vazias (<code>Relatorio_Delecao_PastasVazias_*.txt</code>).</li>
+          <li>Definido como padrao oficial em todo o projeto o icone de alta definicao <code>Duplicate_Files_Finder.ico</code> (88.370 bytes), embutido nos tres executaveis (<code>/win32icon</code>), integrado a tabela <code>Icon</code> do MSI, associado aos atalhos de Desktop/Menu Iniciar e a propriedade <code>ARPPRODUCTICON</code>.</li>
+        </ul>
+
+        <h4>Changed</h4>
+        <ul>
+          <li>Elevada a versao de toda a suite de software de <code>v1.0</code> para <code>v1.1</code> (<code>DupFinder-Neo v1.1 (by @heitorsecurity)</code>), cobrindo titulos de formulários (<code>MainForm</code>, <code>MultiFolderSelectorForm</code>, <code>DuplicateAlertForm</code>, <code>SetupWizardForm</code>), mensagens da bandeja, strings do instalador MSI e registros no Painel de Controle.</li>
+          <li><code>src-win/DupFinderNeo.cs</code>: <code>PopulateResults()</code> atualizado para associar <code>DuplicateItemTag</code> aos itens de duplicatas; <code>BtnDeleteSelectedFiles_Click</code>, <code>BtnDeleteSelectedEmptyDirs_Click</code> e <code>BtnDeleteAllEmptyDirs_Click</code> refatorados com calculos de espaco, confirmacao explicita e geracao de relatorios; <code>BtnOpenFolder_Click</code> e <code>BtnSelectSuggestedFolder_Click</code> ajustados para desempacotar a tag com seguranca.</li>
+          <li><code>src-win/DupFinderWatcher.cs</code>: Textos de menu de contexto, status e notificacoes balloon atualizados de <code>v1.0</code> para <code>v1.1</code>.</li>
+          <li><code>src-win/SetupWizard.cs</code>: Elevada a versao para <code>v1.1</code> / <code>1.1.0</code>, atualizadas mensagens de boas-vindas, licenca e chaves do desinstalador.</li>
+          <li><code>build-msi.ps1</code>: Atualizado para <code>$appVersion = "1.1.0"</code>, <code>$appDisplayVersion = "v1.1"</code>, gerado novo <code>ProductCode</code> GUID, incluido <code>Duplicate_Files_Finder.ico</code> no CAB e associados os icones dos atalhos para <code>AppIcon.ico</code>.</li>
+          <li>Binarios recompilados: <code>dupfinder-neo.exe</code>, <code>dupfinder-watcher.exe</code>, <code>dupfinder-neo-setup.exe</code> e pacote de distribuicao <code>dupfinder-neo.msi</code> (532.480 bytes).</li>
+        </ul>
+
+        <h4>Validation</h4>
+        <ul>
+          <li>Compilacao concluida com sucesso de todos os 3 executaveis C# com <code>csc.exe</code> (.NET Framework 4.0 runtime) com exit code 0 e icone <code>Duplicate_Files_Finder.ico</code> embutido.</li>
+          <li>Execucao de <code>build-msi.ps1</code> sem erros, gerando arquivo <code>dupfinder-neo.msi</code> valido com data.cab e tabela de icones nativa.</li>
+        </ul>
+      </section>
     </main>
 
     <aside class="toc" aria-label="Sumario">
@@ -245,6 +278,7 @@
       <a href="#2026-10-12---correcao-dos-erros-2810-e-2874-na-estrutura-de-controles-e-fontes-do-windows-installer-msi" data-level="3">2026-10-12: Correcao Erros 2810/2874</a>
       <a href="#2026-10-12---implementacao-de-selecao-de-escopo-de-usuarios-monitor-watcher-opcional-e-atalhos-no-assistente-msi" data-level="3">2026-10-12: Opcoes de Instalacao no MSI</a>
       <a href="#2026-10-12---correcao-de-layout-quebrado-feedback-em-tempo-real-da-varredura-e-integracao-do-icone-dupf-neo.ico" data-level="3">2026-10-12: Layout, Feedback e Icone</a>
+      <a href="#2026-10-13---elevacao-para-versao-v11-confirmacao-previa-com-calculo-de-mbgb-relatorios-em-txt-com-arquivo-pai-e-icone-duplicate_files_finderico" data-level="3">2026-10-13: v1.1, Confirmacao, TXT e Icone</a>
     </aside>
   </div>
   <footer class="footer">
