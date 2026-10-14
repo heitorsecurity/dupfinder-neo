@@ -79,6 +79,14 @@ namespace DupFinderNeo
         public string Sha256Hash { get; set; }
     }
 
+    public class DeletionTaskItem
+    {
+        public FileCandidate File { get; set; }
+        public DuplicateGroup Group { get; set; }
+        public FileCandidate Parent { get; set; }
+        public ListViewItem LvItem { get; set; }
+    }
+
     public static class SystemSafety
     {
         private static readonly string[] ProtectedPatterns = new string[]
@@ -1377,11 +1385,16 @@ namespace DupFinderNeo
 
         private void PopulateResults()
         {
+            lblStatus.Text = "Atualizando tabela de resultados...";
+            Application.DoEvents();
+
             lvDuplicates.BeginUpdate();
             lvDuplicates.Items.Clear();
 
             long totalWasted = 0;
             int totalDupFiles = 0;
+
+            List<ListViewItem> buffer = new List<ListViewItem>(8000);
 
             foreach (var g in engine.DuplicateGroups)
             {
@@ -1397,7 +1410,7 @@ namespace DupFinderNeo
                 });
                 groupItem.BackColor = Color.FromArgb(240, 243, 250);
                 groupItem.Font = new Font(this.Font, FontStyle.Bold);
-                lvDuplicates.Items.Add(groupItem);
+                buffer.Add(groupItem);
 
                 for (int i = 0; i < g.Files.Count; i++)
                 {
@@ -1411,8 +1424,21 @@ namespace DupFinderNeo
                     });
                     fItem.Tag = new DuplicateItemTag { File = f, Group = g, IsPrimary = (i == 0) };
                     if (i > 0) fItem.Checked = true;
-                    lvDuplicates.Items.Add(fItem);
+                    buffer.Add(fItem);
                 }
+
+                if (buffer.Count >= 8000)
+                {
+                    lvDuplicates.Items.AddRange(buffer.ToArray());
+                    buffer.Clear();
+                    Application.DoEvents();
+                }
+            }
+
+            if (buffer.Count > 0)
+            {
+                lvDuplicates.Items.AddRange(buffer.ToArray());
+                buffer.Clear();
             }
             lvDuplicates.EndUpdate();
 
@@ -1506,12 +1532,30 @@ namespace DupFinderNeo
 
         private void BtnDeleteSelectedFiles_Click(object sender, EventArgs e)
         {
-            List<KeyValuePair<ListViewItem, DuplicateItemTag>> toDelete = new List<KeyValuePair<ListViewItem, DuplicateItemTag>>();
+            if (worker != null && worker.IsBusy)
+            {
+                MessageBox.Show("Uma operacao ja esta em andamento. Aguarde ou cancele antes de iniciar outra.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            lblStatus.Text = "Contabilizando arquivos marcados para exclusao...";
+            Application.DoEvents();
+
+            List<DeletionTaskItem> toDelete = new List<DeletionTaskItem>();
+            HashSet<string> pathsToDelete = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             foreach (ListViewItem item in lvDuplicates.Items)
             {
                 if (item.Checked && item.Tag is DuplicateItemTag)
                 {
-                    toDelete.Add(new KeyValuePair<ListViewItem, DuplicateItemTag>(item, (DuplicateItemTag)item.Tag));
+                    var tag = (DuplicateItemTag)item.Tag;
+                    toDelete.Add(new DeletionTaskItem
+                    {
+                        File = tag.File,
+                        Group = tag.Group,
+                        LvItem = item
+                    });
+                    pathsToDelete.Add(tag.File.FullPath);
                 }
             }
 
@@ -1522,18 +1566,41 @@ namespace DupFinderNeo
             }
 
             long totalBytesToFree = 0;
-            foreach (var kv in toDelete)
+            foreach (var task in toDelete)
             {
-                totalBytesToFree += kv.Value.File.Size;
+                totalBytesToFree += task.File.Size;
+            }
+
+            // Map parents
+            foreach (var task in toDelete)
+            {
+                var g = task.Group;
+                if (g != null && g.Files != null)
+                {
+                    foreach (var cand in g.Files)
+                    {
+                        if (!pathsToDelete.Contains(cand.FullPath))
+                        {
+                            task.Parent = cand;
+                            break;
+                        }
+                    }
+                    if (task.Parent == null && g.Files.Count > 0)
+                    {
+                        task.Parent = g.Files[0];
+                    }
+                }
             }
 
             string confirmMsg = string.Format(
                 "CONFIRMACAO DE EXCLUSAO DE DUPLICATAS\n\n" +
-                "• Arquivos selecionados para exclusao: {0:N0}\n" +
+                "• Quantidade de arquivos duplicados a excluir: {0:N0}\n" +
                 "• Espaco em disco que sera LIBERADO: {1} ({2:N0} bytes)\n\n" +
-                "ATENCAO: Os arquivos serao excluidos permanentemente do disco.\n" +
-                "Um relatorio completo com os dados de cada arquivo e a indicacao do arquivo pai preservado sera salvo na pasta de Historicos no seu AppData.\n\n" +
-                "Deseja realmente continuar e excluir estes {0:N0} arquivos?",
+                "ATENCAO: Os arquivos marcados serao excluidos permanentemente do disco.\n" +
+                "A exclusao sera executada em segundo plano sem congelar a interface.\n" +
+                "Acompanhe o progresso em tempo real na barra inferior (porcentagem e espaco liberado).\n" +
+                "Um relatorio detalhado em .txt sera salvo no seu AppData com os dados de cada item e o arquivo pai preservado.\n\n" +
+                "Deseja iniciar a exclusao agora?",
                 toDelete.Count, FormatBytes(totalBytesToFree), totalBytesToFree);
 
             if (MessageBox.Show(confirmMsg, "Confirmar Exclusao - DupFinder-Neo v1.1", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
@@ -1541,151 +1608,226 @@ namespace DupFinderNeo
                 return;
             }
 
-            // Build set of paths to be deleted to find remaining primary parent file
-            HashSet<string> pathsToDelete = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var kv in toDelete)
-            {
-                pathsToDelete.Add(kv.Value.File.FullPath);
-            }
+            // Setup UI for deletion
+            btnStart.Enabled = false;
+            btnDeleteSelectedFiles.Enabled = false;
+            btnDeleteSelectedEmptyDirs.Enabled = false;
+            btnDeleteAllEmptyDirs.Enabled = false;
+            btnCancel.Enabled = true;
 
+            progressBar.Value = 0;
+            progressBar.CustomText = string.Format("0% (0 B / {0})", FormatBytes(totalBytesToFree));
+            lblStatus.Text = string.Format("Iniciando exclusao de {0:N0} arquivos duplicados...", toDelete.Count);
+
+            scanStopwatch.Reset();
+            scanStopwatch.Start();
+            uiTimer.Start();
+
+            cts = new CancellationTokenSource();
+            worker = new BackgroundWorker();
+            worker.WorkerSupportsCancellation = true;
+
+            int deletedCount = 0;
+            long deletedBytes = 0;
             List<DeletionRecord> records = new List<DeletionRecord>();
             List<string> deletionErrors = new List<string>();
-            int deleted = 0;
-            long deletedBytes = 0;
             DateTime opTime = DateTime.Now;
+            bool wasCancelled = false;
+            string reportPath = string.Empty;
 
-            foreach (var kv in toDelete)
+            worker.DoWork += delegate(object s, DoWorkEventArgs ea)
             {
-                var tag = kv.Value;
-                var f = tag.File;
-                var g = tag.Group;
+                int totalCount = toDelete.Count;
+                int lastTick = Environment.TickCount;
 
-                // Find primary parent file in group that is NOT marked for deletion
-                FileCandidate parent = null;
-                if (g != null && g.Files != null)
+                for (int i = 0; i < totalCount; i++)
                 {
-                    foreach (var candidate in g.Files)
+                    if (cts.Token.IsCancellationRequested)
                     {
-                        if (!pathsToDelete.Contains(candidate.FullPath))
+                        wasCancelled = true;
+                        break;
+                    }
+
+                    var task = toDelete[i];
+                    var f = task.File;
+                    var parent = task.Parent;
+                    var g = task.Group;
+
+                    DateTime created = DateTime.MinValue;
+                    try
+                    {
+                        if (File.Exists(f.FullPath))
+                            created = File.GetCreationTime(f.FullPath);
+                    }
+                    catch { }
+
+                    try
+                    {
+                        if (File.Exists(f.FullPath))
                         {
-                            parent = candidate;
-                            break;
+                            File.Delete(f.FullPath);
+                            deletedCount++;
+                            deletedBytes += f.Size;
+
+                            records.Add(new DeletionRecord
+                            {
+                                DeletedFileName = f.FileName,
+                                DeletedFullPath = f.FullPath,
+                                DeletedExtension = Path.GetExtension(f.FullPath),
+                                DeletedSize = f.Size,
+                                DeletedCreated = created,
+                                DeletedModified = f.LastModified,
+                                ParentFullPath = parent != null ? parent.FullPath : "(Nenhum pai preservado - todos marcados)",
+                                ParentModified = parent != null ? parent.LastModified : DateTime.MinValue,
+                                Sha256Hash = !string.IsNullOrEmpty(f.FullSha256) ? f.FullSha256 : (g != null ? g.Hash : "")
+                            });
+
+                            if (g != null && g.Files != null)
+                            {
+                                lock (g.Files)
+                                {
+                                    g.Files.Remove(f);
+                                }
+                            }
                         }
                     }
-                    if (parent == null && g.Files.Count > 0)
+                    catch (Exception ex)
                     {
-                        parent = g.Files[0];
+                        deletionErrors.Add(string.Format("{0} -> {1}", f.FullPath, ex.Message));
+                    }
+
+                    int now = Environment.TickCount;
+                    if (now - lastTick >= 50 || i == totalCount - 1)
+                    {
+                        lastTick = now;
+                        int pct = (int)((long)(i + 1) * 100 / totalCount);
+                        if (pct > 100) pct = 100;
+                        if (pct < 0) pct = 0;
+
+                        string curStatus = string.Format("🗑️ Excluindo ({0:N0}/{1:N0}): {2}", i + 1, totalCount, f.FileName);
+                        string curCustom = string.Format("{0}% ({1} liberados)", pct, FormatBytes(deletedBytes));
+                        string curSummary = string.Format("Exclusao em andamento: {0:N0}/{1:N0} excluidos | Liberado: {2} / {3}",
+                            i + 1, totalCount, FormatBytes(deletedBytes), FormatBytes(totalBytesToFree));
+
+                        if (this.InvokeRequired)
+                        {
+                            this.BeginInvoke(new Action(delegate
+                            {
+                                lblStatus.Text = curStatus;
+                                progressBar.Value = pct;
+                                progressBar.CustomText = curCustom;
+                                lblSummary.Text = curSummary;
+                            }));
+                        }
+                        else
+                        {
+                            lblStatus.Text = curStatus;
+                            progressBar.Value = pct;
+                            progressBar.CustomText = curCustom;
+                            lblSummary.Text = curSummary;
+                        }
                     }
                 }
 
-                DateTime created = DateTime.MinValue;
+                // Generate report in AppData
+                string historyFolder = GetHistoryFolder();
+                string reportFileName = string.Format("Relatorio_Delecao_Duplicatas_{0}.txt", opTime.ToString("yyyyMMdd_HHmmss"));
+                reportPath = Path.Combine(historyFolder, reportFileName);
+
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("================================================================================");
+                sb.AppendLine("DUPFINDER-NEO v1.1 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE DUPLICATAS");
+                sb.AppendLine("================================================================================");
+                sb.AppendLine(string.Format("Data e Hora da Execucao  : {0:yyyy-MM-dd HH:mm:ss}", opTime));
+                sb.AppendLine(string.Format("Status da Operacao       : {0}", wasCancelled ? "INTERROMPIDO PELO USUARIO" : "CONCLUIDO COM SUCESSO"));
+                sb.AppendLine(string.Format("Total de Itens Excluidos : {0:N0}", deletedCount));
+                sb.AppendLine(string.Format("Espaco Total Liberado    : {0} ({1:N0} bytes)", FormatBytes(deletedBytes), deletedBytes));
+                sb.AppendLine(string.Format("Diretorio de Historico   : {0}", historyFolder));
+                sb.AppendLine("================================================================================");
+                sb.AppendLine();
+                sb.AppendLine("DETALHAMENTO DOS ARQUIVOS APAGADOS E ARQUIVO PAI (REFERENCIA PRINCIPAL PRESERVADA):");
+                sb.AppendLine("--------------------------------------------------------------------------------");
+
+                for (int i = 0; i < records.Count; i++)
+                {
+                    var r = records[i];
+                    sb.AppendLine(string.Format("[{0}] ARQUIVO APAGADO:", i + 1));
+                    sb.AppendLine(string.Format("    • Nome do Arquivo     : {0}", r.DeletedFileName));
+                    sb.AppendLine(string.Format("    • Caminho Completo    : {0}", r.DeletedFullPath));
+                    sb.AppendLine(string.Format("    • Extensao           : {0}", r.DeletedExtension));
+                    sb.AppendLine(string.Format("    • Tamanho             : {0} ({1:N0} bytes)", FormatBytes(r.DeletedSize), r.DeletedSize));
+                    sb.AppendLine(string.Format("    • Data de Criacao     : {0:yyyy-MM-dd HH:mm:ss}", r.DeletedCreated));
+                    sb.AppendLine(string.Format("    • Data de Modificacao : {0:yyyy-MM-dd HH:mm:ss}", r.DeletedModified));
+                    if (!string.IsNullOrEmpty(r.Sha256Hash))
+                        sb.AppendLine(string.Format("    • Hash SHA-256        : {0}", r.Sha256Hash));
+                    sb.AppendLine("    ARQUIVO PAI (REFERENCIA PRINCIPAL PRESERVADA):");
+                    sb.AppendLine(string.Format("    • Caminho do Pai      : {0}", r.ParentFullPath));
+                    if (r.ParentModified != DateTime.MinValue)
+                        sb.AppendLine(string.Format("    • Data do Pai         : {0:yyyy-MM-dd HH:mm:ss}", r.ParentModified));
+                    sb.AppendLine("--------------------------------------------------------------------------------");
+                }
+
+                if (deletionErrors.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("FALHAS / ERROS DE PERMISSAO DURANTE A EXCLUSAO:");
+                    foreach (var err in deletionErrors)
+                    {
+                        sb.AppendLine("  ! " + err);
+                    }
+                    sb.AppendLine("--------------------------------------------------------------------------------");
+                }
+
+                sb.AppendLine();
+                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.1 (by @heitorsecurity).");
+
                 try
                 {
-                    if (File.Exists(f.FullPath))
-                        created = File.GetCreationTime(f.FullPath);
+                    File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8);
                 }
                 catch { }
+            };
 
-                try
+            worker.RunWorkerCompleted += delegate(object s, RunWorkerCompletedEventArgs ea)
+            {
+                scanStopwatch.Stop();
+                uiTimer.Stop();
+
+                btnStart.Enabled = true;
+                btnDeleteSelectedFiles.Enabled = true;
+                btnDeleteSelectedEmptyDirs.Enabled = true;
+                btnDeleteAllEmptyDirs.Enabled = true;
+                btnCancel.Enabled = false;
+
+                progressBar.Value = 100;
+                progressBar.CustomText = string.Format("100% Concluido ({0} liberados)", FormatBytes(deletedBytes));
+                lblStatus.Text = string.Format("Exclusao {0}: {1:N0} arquivos removidos ({2} liberados).",
+                    wasCancelled ? "interrompida" : "finalizada", deletedCount, FormatBytes(deletedBytes));
+
+                // Remove duplicate groups in memory that now have <= 1 file
+                engine.DuplicateGroups.RemoveAll(g => g.Files.Count <= 1);
+
+                // Re-populate results smoothly without freezing
+                lblStatus.Text = "Atualizando tabela de resultados...";
+                PopulateResults();
+                lblStatus.Text = string.Format("Pronto. {0:N0} arquivos excluidos ({1} liberados).", deletedCount, FormatBytes(deletedBytes));
+
+                string finishMsg = string.Format(
+                    "Exclusao {0}!\n\n" +
+                    "• Arquivos excluidos: {1:N0}\n" +
+                    "• Espaco em disco liberado: {2}\n\n" +
+                    "Relatorio detalhado salvo em:\n{3}\n\n" +
+                    "Deseja abrir o relatorio agora no Bloco de Notas?",
+                    wasCancelled ? "interrompida pelo usuario" : "concluida com sucesso",
+                    deletedCount, FormatBytes(deletedBytes), reportPath);
+
+                if (MessageBox.Show(finishMsg, "Exclusao Concluida - DupFinder-Neo v1.1", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 {
-                    if (File.Exists(f.FullPath))
-                    {
-                        File.Delete(f.FullPath);
-                        deleted++;
-                        deletedBytes += f.Size;
-
-                        records.Add(new DeletionRecord
-                        {
-                            DeletedFileName = f.FileName,
-                            DeletedFullPath = f.FullPath,
-                            DeletedExtension = Path.GetExtension(f.FullPath),
-                            DeletedSize = f.Size,
-                            DeletedCreated = created,
-                            DeletedModified = f.LastModified,
-                            ParentFullPath = parent != null ? parent.FullPath : "(Nenhum pai preservado - todos marcados)",
-                            ParentModified = parent != null ? parent.LastModified : DateTime.MinValue,
-                            Sha256Hash = !string.IsNullOrEmpty(f.FullSha256) ? f.FullSha256 : (g != null ? g.Hash : "")
-                        });
-                    }
+                    try { Process.Start("notepad.exe", reportPath); } catch { }
                 }
-                catch (Exception ex)
-                {
-                    deletionErrors.Add(string.Format("{0} -> {1}", f.FullPath, ex.Message));
-                }
-            }
+            };
 
-            // Generate detailed TXT report in AppData\DupFinder-Neo\HistoricosDelecoes
-            string historyFolder = GetHistoryFolder();
-            string reportFileName = string.Format("Relatorio_Delecao_Duplicatas_{0}.txt", opTime.ToString("yyyyMMdd_HHmmss"));
-            string reportPath = Path.Combine(historyFolder, reportFileName);
-
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("================================================================================");
-            sb.AppendLine("DUPFINDER-NEO v1.1 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE DUPLICATAS");
-            sb.AppendLine("================================================================================");
-            sb.AppendLine(string.Format("Data e Hora da Execucao  : {0:yyyy-MM-dd HH:mm:ss}", opTime));
-            sb.AppendLine(string.Format("Total de Itens Excluidos : {0:N0}", deleted));
-            sb.AppendLine(string.Format("Espaco Total Liberado    : {0} ({1:N0} bytes)", FormatBytes(deletedBytes), deletedBytes));
-            sb.AppendLine(string.Format("Diretorio de Historico   : {0}", historyFolder));
-            sb.AppendLine("================================================================================");
-            sb.AppendLine();
-            sb.AppendLine("DETALHAMENTO DOS ARQUIVOS APAGADOS E ARQUIVO PAI (REFERENCIA PRINCIPAL PRESERVADA):");
-            sb.AppendLine("--------------------------------------------------------------------------------");
-
-            for (int i = 0; i < records.Count; i++)
-            {
-                var r = records[i];
-                sb.AppendLine(string.Format("[{0}] ARQUIVO APAGADO:", i + 1));
-                sb.AppendLine(string.Format("    • Nome do Arquivo     : {0}", r.DeletedFileName));
-                sb.AppendLine(string.Format("    • Caminho Completo    : {0}", r.DeletedFullPath));
-                sb.AppendLine(string.Format("    • Extensao           : {0}", r.DeletedExtension));
-                sb.AppendLine(string.Format("    • Tamanho             : {0} ({1:N0} bytes)", FormatBytes(r.DeletedSize), r.DeletedSize));
-                sb.AppendLine(string.Format("    • Data de Criacao     : {0:yyyy-MM-dd HH:mm:ss}", r.DeletedCreated));
-                sb.AppendLine(string.Format("    • Data de Modificacao : {0:yyyy-MM-dd HH:mm:ss}", r.DeletedModified));
-                if (!string.IsNullOrEmpty(r.Sha256Hash))
-                    sb.AppendLine(string.Format("    • Hash SHA-256        : {0}", r.Sha256Hash));
-                sb.AppendLine("    ARQUIVO PAI (REFERENCIA PRINCIPAL PRESERVADA):");
-                sb.AppendLine(string.Format("    • Caminho do Pai      : {0}", r.ParentFullPath));
-                if (r.ParentModified != DateTime.MinValue)
-                    sb.AppendLine(string.Format("    • Data do Pai         : {0:yyyy-MM-dd HH:mm:ss}", r.ParentModified));
-                sb.AppendLine("--------------------------------------------------------------------------------");
-            }
-
-            if (deletionErrors.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("FALHAS / ERROS DE PERMISSAO DURANTE A EXCLUSAO:");
-                foreach (var err in deletionErrors)
-                {
-                    sb.AppendLine("  ! " + err);
-                }
-                sb.AppendLine("--------------------------------------------------------------------------------");
-            }
-
-            sb.AppendLine();
-            sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.1 (by @heitorsecurity).");
-
-            try
-            {
-                File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8);
-            }
-            catch { }
-
-            string finishMsg = string.Format(
-                "Exclusao concluida com sucesso!\n\n" +
-                "• Arquivos excluidos: {0:N0}\n" +
-                "• Espaco em disco liberado: {1}\n\n" +
-                "Relatorio detalhado gerado em:\n{2}\n\n" +
-                "Deseja abrir o relatorio agora no Bloco de Notas?",
-                deleted, FormatBytes(deletedBytes), reportPath);
-
-            if (MessageBox.Show(finishMsg, "Exclusao Concluida - DupFinder-Neo v1.1", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
-            {
-                try { Process.Start("notepad.exe", reportPath); } catch { }
-            }
-
-            // Remove deleted items from ListView to avoid rescanning everything
-            PopulateResults();
+            worker.RunWorkerAsync();
         }
 
         private void BtnOpenFolder_Click(object sender, EventArgs e)
@@ -1749,6 +1891,12 @@ namespace DupFinderNeo
 
         private void BtnDeleteSelectedEmptyDirs_Click(object sender, EventArgs e)
         {
+            if (worker != null && worker.IsBusy)
+            {
+                MessageBox.Show("Uma operacao ja esta em andamento. Aguarde ou cancele antes de iniciar outra.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             List<EmptyDirectoryInfo> toDelete = new List<EmptyDirectoryInfo>();
             foreach (ListViewItem item in lvEmptyDirs.Items)
             {
@@ -1768,80 +1916,186 @@ namespace DupFinderNeo
             string confirmMsg = string.Format(
                 "CONFIRMACAO DE EXCLUSAO DE PASTAS VAZIAS\n\n" +
                 "• Quantidade de pastas vazias selecionadas: {0:N0}\n" +
-                "• Pastas do sistema estao protegidas e nao serao tocadas.\n\n" +
+                "• Pastas do sistema estao protegidas e nao serao tocadas.\n" +
+                "• A exclusao sera executada em segundo plano sem congelar o aplicativo.\n\n" +
                 "Deseja realmente excluir permanentemente estas {0:N0} pastas vazias?",
                 toDelete.Count);
 
             if (MessageBox.Show(confirmMsg, "Confirmar Exclusao - DupFinder-Neo v1.1", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
                 return;
 
+            btnStart.Enabled = false;
+            btnDeleteSelectedFiles.Enabled = false;
+            btnDeleteSelectedEmptyDirs.Enabled = false;
+            btnDeleteAllEmptyDirs.Enabled = false;
+            btnCancel.Enabled = true;
+
+            progressBar.Value = 0;
+            progressBar.CustomText = "0% (0 pastas)";
+            lblStatus.Text = string.Format("Excluindo {0:N0} pastas vazias...", toDelete.Count);
+
+            scanStopwatch.Reset();
+            scanStopwatch.Start();
+            uiTimer.Start();
+
+            cts = new CancellationTokenSource();
+            worker = new BackgroundWorker();
+            worker.WorkerSupportsCancellation = true;
+
             DateTime opTime = DateTime.Now;
             List<string> deletedPaths = new List<string>();
             List<string> errors = new List<string>();
+            bool wasCancelled = false;
+            string reportPath = string.Empty;
 
-            foreach (var ed in toDelete)
+            worker.DoWork += delegate(object s, DoWorkEventArgs ea)
             {
-                try
+                int totalCount = toDelete.Count;
+                int lastTick = Environment.TickCount;
+
+                for (int i = 0; i < totalCount; i++)
                 {
-                    if (Directory.Exists(ed.Path))
+                    if (cts.Token.IsCancellationRequested)
                     {
-                        Directory.Delete(ed.Path);
-                        deletedPaths.Add(ed.Path);
+                        wasCancelled = true;
+                        break;
+                    }
+
+                    var ed = toDelete[i];
+                    try
+                    {
+                        if (Directory.Exists(ed.Path))
+                        {
+                            Directory.Delete(ed.Path);
+                            deletedPaths.Add(ed.Path);
+                            lock (engine.EmptyDirectories)
+                            {
+                                engine.EmptyDirectories.Remove(ed);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add(ed.Path + " -> " + ex.Message);
+                    }
+
+                    int now = Environment.TickCount;
+                    if (now - lastTick >= 50 || i == totalCount - 1)
+                    {
+                        lastTick = now;
+                        int pct = (int)((long)(i + 1) * 100 / totalCount);
+                        if (pct > 100) pct = 100;
+
+                        string curStatus = string.Format("🗑️ Excluindo pasta ({0:N0}/{1:N0}): {2}", i + 1, totalCount, Path.GetFileName(ed.Path));
+                        string curCustom = string.Format("{0}% ({1:N0} removidas)", pct, deletedPaths.Count);
+
+                        if (this.InvokeRequired)
+                        {
+                            this.BeginInvoke(new Action(delegate
+                            {
+                                lblStatus.Text = curStatus;
+                                progressBar.Value = pct;
+                                progressBar.CustomText = curCustom;
+                            }));
+                        }
+                        else
+                        {
+                            lblStatus.Text = curStatus;
+                            progressBar.Value = pct;
+                            progressBar.CustomText = curCustom;
+                        }
                     }
                 }
-                catch (Exception ex)
-                {
-                    errors.Add(ed.Path + " -> " + ex.Message);
-                }
-            }
 
-            // Generate report
-            string historyFolder = GetHistoryFolder();
-            string reportFileName = string.Format("Relatorio_Delecao_PastasVazias_{0}.txt", opTime.ToString("yyyyMMdd_HHmmss"));
-            string reportPath = Path.Combine(historyFolder, reportFileName);
+                // Generate report
+                string historyFolder = GetHistoryFolder();
+                string reportFileName = string.Format("Relatorio_Delecao_PastasVazias_{0}.txt", opTime.ToString("yyyyMMdd_HHmmss"));
+                reportPath = Path.Combine(historyFolder, reportFileName);
 
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("================================================================================");
-            sb.AppendLine("DUPFINDER-NEO v1.1 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE PASTAS VAZIAS");
-            sb.AppendLine("================================================================================");
-            sb.AppendLine(string.Format("Data e Hora da Execucao  : {0:yyyy-MM-dd HH:mm:ss}", opTime));
-            sb.AppendLine(string.Format("Total de Pastas Excluidas: {0:N0}", deletedPaths.Count));
-            sb.AppendLine(string.Format("Diretorio de Historico   : {0}", historyFolder));
-            sb.AppendLine("================================================================================");
-            sb.AppendLine();
-            sb.AppendLine("LISTA DE PASTAS VAZIAS EXCLUIDAS:");
-            for (int i = 0; i < deletedPaths.Count; i++)
-            {
-                sb.AppendLine(string.Format("[{0}] {1}", i + 1, deletedPaths[i]));
-            }
-            if (errors.Count > 0)
-            {
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("================================================================================");
+                sb.AppendLine("DUPFINDER-NEO v1.1 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE PASTAS VAZIAS");
+                sb.AppendLine("================================================================================");
+                sb.AppendLine(string.Format("Data e Hora da Execucao  : {0:yyyy-MM-dd HH:mm:ss}", opTime));
+                sb.AppendLine(string.Format("Status da Operacao       : {0}", wasCancelled ? "INTERROMPIDO PELO USUARIO" : "CONCLUIDO COM SUCESSO"));
+                sb.AppendLine(string.Format("Total de Pastas Excluidas: {0:N0}", deletedPaths.Count));
+                sb.AppendLine(string.Format("Diretorio de Historico   : {0}", historyFolder));
+                sb.AppendLine("================================================================================");
                 sb.AppendLine();
-                sb.AppendLine("ERROS DURANTE A EXCLUSAO:");
-                foreach (var err in errors) sb.AppendLine("  ! " + err);
-            }
-            sb.AppendLine();
-            sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.1 (by @heitorsecurity).");
+                sb.AppendLine("LISTA DE PASTAS VAZIAS EXCLUIDAS:");
+                for (int i = 0; i < deletedPaths.Count; i++)
+                {
+                    sb.AppendLine(string.Format("[{0}] {1}", i + 1, deletedPaths[i]));
+                }
+                if (errors.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("ERROS DURANTE A EXCLUSAO:");
+                    foreach (var err in errors) sb.AppendLine("  ! " + err);
+                }
+                sb.AppendLine();
+                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.1 (by @heitorsecurity).");
 
-            try { File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8); } catch { }
+                try { File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8); } catch { }
+            };
 
-            string finishMsg = string.Format(
-                "Exclusao concluida!\n\n" +
-                "• Pastas vazias excluidas: {0:N0}\n\n" +
-                "Relatorio salvo em:\n{1}\n\n" +
-                "Deseja abrir o relatorio no Bloco de Notas?",
-                deletedPaths.Count, reportPath);
-
-            if (MessageBox.Show(finishMsg, "Sucesso - DupFinder-Neo v1.1", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+            worker.RunWorkerCompleted += delegate(object s, RunWorkerCompletedEventArgs ea)
             {
-                try { Process.Start("notepad.exe", reportPath); } catch { }
-            }
+                scanStopwatch.Stop();
+                uiTimer.Stop();
 
-            lvEmptyDirs.Items.Clear();
+                btnStart.Enabled = true;
+                btnDeleteSelectedFiles.Enabled = true;
+                btnDeleteSelectedEmptyDirs.Enabled = true;
+                btnDeleteAllEmptyDirs.Enabled = true;
+                btnCancel.Enabled = false;
+
+                progressBar.Value = 100;
+                progressBar.CustomText = string.Format("100% Concluido ({0:N0} pastas)", deletedPaths.Count);
+                lblStatus.Text = string.Format("Exclusao de pastas {0}: {1:N0} removidas.",
+                    wasCancelled ? "interrompida" : "finalizada", deletedPaths.Count);
+
+                lvEmptyDirs.BeginUpdate();
+                lvEmptyDirs.Items.Clear();
+                foreach (var ed in engine.EmptyDirectories)
+                {
+                    ListViewItem eItem = new ListViewItem(new string[]
+                    {
+                        ed.Path,
+                        ed.IsSystemProtected ? "Protegido pelo Sistema" : "Seguro para Exclusao",
+                        ed.LastModified.ToString("yyyy-MM-dd HH:mm")
+                    });
+                    eItem.Tag = ed;
+                    if (!ed.IsSystemProtected) eItem.Checked = true;
+                    lvEmptyDirs.Items.Add(eItem);
+                }
+                lvEmptyDirs.EndUpdate();
+
+                string finishMsg = string.Format(
+                    "Exclusao {0}!\n\n" +
+                    "• Pastas vazias excluidas: {1:N0}\n\n" +
+                    "Relatorio salvo em:\n{2}\n\n" +
+                    "Deseja abrir o relatorio no Bloco de Notas?",
+                    wasCancelled ? "interrompida pelo usuario" : "concluida com sucesso",
+                    deletedPaths.Count, reportPath);
+
+                if (MessageBox.Show(finishMsg, "Sucesso - DupFinder-Neo v1.1", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                {
+                    try { Process.Start("notepad.exe", reportPath); } catch { }
+                }
+            };
+
+            worker.RunWorkerAsync();
         }
 
         private void BtnDeleteAllEmptyDirs_Click(object sender, EventArgs e)
         {
+            if (worker != null && worker.IsBusy)
+            {
+                MessageBox.Show("Uma operacao ja esta em andamento. Aguarde ou cancele antes de iniciar outra.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             List<EmptyDirectoryInfo> safeDirs = new List<EmptyDirectoryInfo>();
             foreach (var ed in engine.EmptyDirectories)
             {
@@ -1857,76 +2111,176 @@ namespace DupFinderNeo
             string confirmMsg = string.Format(
                 "CONFIRMACAO DE EXCLUSAO GERAL DE PASTAS VAZIAS\n\n" +
                 "• Quantidade total de pastas vazias seguras: {0:N0}\n" +
-                "• Pastas de sistema e de instalacao foram preservadas automaticamente.\n\n" +
+                "• Pastas de sistema e de instalacao foram preservadas automaticamente.\n" +
+                "• A exclusao sera executada em segundo plano sem congelar a tela.\n\n" +
                 "Deseja realmente excluir TODAS as {0:N0} pastas vazias identificadas?",
                 safeDirs.Count);
 
             if (MessageBox.Show(confirmMsg, "Confirmar Exclusao Geral - DupFinder-Neo v1.1", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
                 return;
 
+            btnStart.Enabled = false;
+            btnDeleteSelectedFiles.Enabled = false;
+            btnDeleteSelectedEmptyDirs.Enabled = false;
+            btnDeleteAllEmptyDirs.Enabled = false;
+            btnCancel.Enabled = true;
+
+            progressBar.Value = 0;
+            progressBar.CustomText = "0% (0 pastas)";
+            lblStatus.Text = string.Format("Excluindo todas as {0:N0} pastas vazias seguras...", safeDirs.Count);
+
+            scanStopwatch.Reset();
+            scanStopwatch.Start();
+            uiTimer.Start();
+
+            cts = new CancellationTokenSource();
+            worker = new BackgroundWorker();
+            worker.WorkerSupportsCancellation = true;
+
             DateTime opTime = DateTime.Now;
             List<string> deletedPaths = new List<string>();
             List<string> errors = new List<string>();
+            bool wasCancelled = false;
+            string reportPath = string.Empty;
 
-            foreach (var ed in safeDirs)
+            worker.DoWork += delegate(object s, DoWorkEventArgs ea)
             {
-                try
+                int totalCount = safeDirs.Count;
+                int lastTick = Environment.TickCount;
+
+                for (int i = 0; i < totalCount; i++)
                 {
-                    if (Directory.Exists(ed.Path))
+                    if (cts.Token.IsCancellationRequested)
                     {
-                        Directory.Delete(ed.Path);
-                        deletedPaths.Add(ed.Path);
+                        wasCancelled = true;
+                        break;
+                    }
+
+                    var ed = safeDirs[i];
+                    try
+                    {
+                        if (Directory.Exists(ed.Path))
+                        {
+                            Directory.Delete(ed.Path);
+                            deletedPaths.Add(ed.Path);
+                            lock (engine.EmptyDirectories)
+                            {
+                                engine.EmptyDirectories.Remove(ed);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add(ed.Path + " -> " + ex.Message);
+                    }
+
+                    int now = Environment.TickCount;
+                    if (now - lastTick >= 50 || i == totalCount - 1)
+                    {
+                        lastTick = now;
+                        int pct = (int)((long)(i + 1) * 100 / totalCount);
+                        if (pct > 100) pct = 100;
+
+                        string curStatus = string.Format("🗑️ Excluindo pasta ({0:N0}/{1:N0}): {2}", i + 1, totalCount, Path.GetFileName(ed.Path));
+                        string curCustom = string.Format("{0}% ({1:N0} removidas)", pct, deletedPaths.Count);
+
+                        if (this.InvokeRequired)
+                        {
+                            this.BeginInvoke(new Action(delegate
+                            {
+                                lblStatus.Text = curStatus;
+                                progressBar.Value = pct;
+                                progressBar.CustomText = curCustom;
+                            }));
+                        }
+                        else
+                        {
+                            lblStatus.Text = curStatus;
+                            progressBar.Value = pct;
+                            progressBar.CustomText = curCustom;
+                        }
                     }
                 }
-                catch (Exception ex)
-                {
-                    errors.Add(ed.Path + " -> " + ex.Message);
-                }
-            }
 
-            // Generate report
-            string historyFolder = GetHistoryFolder();
-            string reportFileName = string.Format("Relatorio_Delecao_TodasPastasVazias_{0}.txt", opTime.ToString("yyyyMMdd_HHmmss"));
-            string reportPath = Path.Combine(historyFolder, reportFileName);
+                // Generate report
+                string historyFolder = GetHistoryFolder();
+                string reportFileName = string.Format("Relatorio_Delecao_TodasPastasVazias_{0}.txt", opTime.ToString("yyyyMMdd_HHmmss"));
+                reportPath = Path.Combine(historyFolder, reportFileName);
 
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("================================================================================");
-            sb.AppendLine("DUPFINDER-NEO v1.1 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE PASTAS VAZIAS");
-            sb.AppendLine("================================================================================");
-            sb.AppendLine(string.Format("Data e Hora da Execucao  : {0:yyyy-MM-dd HH:mm:ss}", opTime));
-            sb.AppendLine(string.Format("Total de Pastas Excluidas: {0:N0}", deletedPaths.Count));
-            sb.AppendLine(string.Format("Diretorio de Historico   : {0}", historyFolder));
-            sb.AppendLine("================================================================================");
-            sb.AppendLine();
-            sb.AppendLine("LISTA DE PASTAS VAZIAS EXCLUIDAS:");
-            for (int i = 0; i < deletedPaths.Count; i++)
-            {
-                sb.AppendLine(string.Format("[{0}] {1}", i + 1, deletedPaths[i]));
-            }
-            if (errors.Count > 0)
-            {
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("================================================================================");
+                sb.AppendLine("DUPFINDER-NEO v1.1 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE PASTAS VAZIAS");
+                sb.AppendLine("================================================================================");
+                sb.AppendLine(string.Format("Data e Hora da Execucao  : {0:yyyy-MM-dd HH:mm:ss}", opTime));
+                sb.AppendLine(string.Format("Status da Operacao       : {0}", wasCancelled ? "INTERROMPIDO PELO USUARIO" : "CONCLUIDO COM SUCESSO"));
+                sb.AppendLine(string.Format("Total de Pastas Excluidas: {0:N0}", deletedPaths.Count));
+                sb.AppendLine(string.Format("Diretorio de Historico   : {0}", historyFolder));
+                sb.AppendLine("================================================================================");
                 sb.AppendLine();
-                sb.AppendLine("ERROS DURANTE A EXCLUSAO:");
-                foreach (var err in errors) sb.AppendLine("  ! " + err);
-            }
-            sb.AppendLine();
-            sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.1 (by @heitorsecurity).");
+                sb.AppendLine("LISTA DE PASTAS VAZIAS EXCLUIDAS:");
+                for (int i = 0; i < deletedPaths.Count; i++)
+                {
+                    sb.AppendLine(string.Format("[{0}] {1}", i + 1, deletedPaths[i]));
+                }
+                if (errors.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("ERROS DURANTE A EXCLUSAO:");
+                    foreach (var err in errors) sb.AppendLine("  ! " + err);
+                }
+                sb.AppendLine();
+                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.1 (by @heitorsecurity).");
 
-            try { File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8); } catch { }
+                try { File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8); } catch { }
+            };
 
-            string finishMsg = string.Format(
-                "Exclusao concluida!\n\n" +
-                "• Pastas vazias excluidas: {0:N0}\n\n" +
-                "Relatorio salvo em:\n{1}\n\n" +
-                "Deseja abrir o relatorio no Bloco de Notas?",
-                deletedPaths.Count, reportPath);
-
-            if (MessageBox.Show(finishMsg, "Sucesso - DupFinder-Neo v1.1", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+            worker.RunWorkerCompleted += delegate(object s, RunWorkerCompletedEventArgs ea)
             {
-                try { Process.Start("notepad.exe", reportPath); } catch { }
-            }
+                scanStopwatch.Stop();
+                uiTimer.Stop();
 
-            lvEmptyDirs.Items.Clear();
+                btnStart.Enabled = true;
+                btnDeleteSelectedFiles.Enabled = true;
+                btnDeleteSelectedEmptyDirs.Enabled = true;
+                btnDeleteAllEmptyDirs.Enabled = true;
+                btnCancel.Enabled = false;
+
+                progressBar.Value = 100;
+                progressBar.CustomText = string.Format("100% Concluido ({0:N0} pastas)", deletedPaths.Count);
+                lblStatus.Text = string.Format("Exclusao geral {0}: {1:N0} pastas removidas.",
+                    wasCancelled ? "interrompida" : "finalizada", deletedPaths.Count);
+
+                lvEmptyDirs.BeginUpdate();
+                lvEmptyDirs.Items.Clear();
+                foreach (var ed in engine.EmptyDirectories)
+                {
+                    ListViewItem eItem = new ListViewItem(new string[]
+                    {
+                        ed.Path,
+                        ed.IsSystemProtected ? "Protegido pelo Sistema" : "Seguro para Exclusao",
+                        ed.LastModified.ToString("yyyy-MM-dd HH:mm")
+                    });
+                    eItem.Tag = ed;
+                    if (!ed.IsSystemProtected) eItem.Checked = true;
+                    lvEmptyDirs.Items.Add(eItem);
+                }
+                lvEmptyDirs.EndUpdate();
+
+                string finishMsg = string.Format(
+                    "Exclusao {0}!\n\n" +
+                    "• Pastas vazias excluidas: {1:N0}\n\n" +
+                    "Relatorio salvo em:\n{2}\n\n" +
+                    "Deseja abrir o relatorio no Bloco de Notas?",
+                    wasCancelled ? "interrompida pelo usuario" : "concluida com sucesso",
+                    deletedPaths.Count, reportPath);
+
+                if (MessageBox.Show(finishMsg, "Sucesso - DupFinder-Neo v1.1", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                {
+                    try { Process.Start("notepad.exe", reportPath); } catch { }
+                }
+            };
+
+            worker.RunWorkerAsync();
         }
 
         private string FormatBytes(long bytes)

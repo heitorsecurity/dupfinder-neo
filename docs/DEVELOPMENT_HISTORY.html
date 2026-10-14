@@ -268,6 +268,38 @@
           <li>Execucao de <code>build-msi.ps1</code> sem erros, gerando arquivo <code>dupfinder-neo.msi</code> valido com data.cab e tabela de icones nativa.</li>
         </ul>
       </section>
+
+      <section>
+        <h3>2026-10-13 - Correcao de Congelamento na Delecao de Arquivos Massiva, Execucao Assincrona com Progresso Real-Time em MB/GB e Paginacao em Lotes na ListView</h3>
+        <p><strong>Evidence level:</strong> Current source/config, Execution log, Runtime/data artifact, User-provided context.</p>
+
+        <h4>Fixed</h4>
+        <ul>
+          <li>Corrigido o congelamento total da interface gráfica (<code>DupFinder-Neo v1.0 (by @heitorsecurity) (Not Responding)</code>) que ocorria ao solicitar a exclusao de arquivos apos varreduras com volumes massivos de duplicatas (ex: 187.483 grupos em multiplos discos). A causa raiz identificada foi a execucao sincrona do loop de exclusao de arquivos e formatacao de strings na thread de interface (UI Thread), bloqueando a bomba de mensagens do Windows durante operacoes de I/O de disco lentas.</li>
+          <li>Corrigido o bloqueio da interface no repovoamento de resultados (<code>PopulateResults()</code>): substituida a insercao elemento a elemento no <code>ListView</code> por insercao paginada em lotes de 8.000 itens (<code>lvDuplicates.Items.AddRange(...)</code>) intercalada com <code>Application.DoEvents()</code>, prevenindo congelamento da interface mesmo com centenas de milhares de linhas na tabela.</li>
+        </ul>
+
+        <h4>Changed</h4>
+        <ul>
+          <li>Refatorada a rotina de exclusao de arquivos duplicados (<code>BtnDeleteSelectedFiles_Click</code>) e pastas vazias (<code>BtnDeleteSelectedEmptyDirs_Click</code> e <code>BtnDeleteAllEmptyDirs_Click</code>) em <code>src-win/DupFinderNeo.cs</code> para execucao 100% assincrona em segundo plano via <code>BackgroundWorker</code>.</li>
+          <li>Adicionada estrutura de controle com <code>CancellationTokenSource</code>, permitindo que o usuario interrompa e cancele a operacao de exclusao a qualquer momento atraves do botao <code>btnCancel</code> sem travamentos ou corrupcao de dados.</li>
+          <li>Implementado feedback visual em tempo real na view durante todo o processo de exclusao (com throttle de 50ms via <code>BeginInvoke</code>):
+            <ul>
+              <li>Barra de progresso atualizada dinamicamente com porcentagem exata e texto sobreposto indicando o espaco liberado (<code>{pct}% ({freedMB} liberados)</code>).</li>
+              <li>Rotulo de status (<code>lblStatus</code>) informando o arquivo atual sendo processado (<code>🗑️ Excluindo ({cur}/{total}): {fileName}</code>).</li>
+              <li>Resumo de status (<code>lblSummary</code>) detalhando a contagem e os dados acumulados (<code>Exclusao em andamento: {cur}/{total} excluidos | Liberado: {freedMB} / {totalMB}</code>).</li>
+            </ul>
+          </li>
+          <li>Implementada remocao em memoria dos arquivos excluidos dentro de <code>engine.DuplicateGroups</code> e poda de grupos com &lt;= 1 arquivos (<code>RemoveAll(g => g.Files.Count &lt;= 1)</code>), mantendo o cache de dados consistente e acelerando a atualizacao da visualizacao pos-delecao.</li>
+          <li>Recompilados os binarios <code>dupfinder-neo.exe</code>, <code>dupfinder-watcher.exe</code> e <code>dupfinder-neo-setup.exe</code> com <code>csc.exe</code> e rebuildado o pacote <code>dupfinder-neo.msi</code> via <code>build-msi.ps1</code>.</li>
+        </ul>
+
+        <h4>Validation</h4>
+        <ul>
+          <li>Compilacao dos 3 executaveis C# executada com <code>csc.exe</code> (.NET Framework 4.0 runtime) com exit code 0 e sem erros de sintaxe ou referencias ausentes.</li>
+          <li>Execucao bem-sucedida de <code>build-msi.ps1</code>, gerando o pacote <code>dupfinder-neo.msi</code> atualizado (532.480 bytes) e verificado integridade do instalador.</li>
+        </ul>
+      </section>
     </main>
 
     <aside class="toc" aria-label="Sumario">
@@ -279,6 +311,7 @@
       <a href="#2026-10-12---implementacao-de-selecao-de-escopo-de-usuarios-monitor-watcher-opcional-e-atalhos-no-assistente-msi" data-level="3">2026-10-12: Opcoes de Instalacao no MSI</a>
       <a href="#2026-10-12---correcao-de-layout-quebrado-feedback-em-tempo-real-da-varredura-e-integracao-do-icone-dupf-neo.ico" data-level="3">2026-10-12: Layout, Feedback e Icone</a>
       <a href="#2026-10-13---elevacao-para-versao-v11-confirmacao-previa-com-calculo-de-mbgb-relatorios-em-txt-com-arquivo-pai-e-icone-duplicate_files_finderico" data-level="3">2026-10-13: v1.1, Confirmacao, TXT e Icone</a>
+      <a href="#2026-10-13---correcao-de-congelamento-na-delecao-de-arquivos-massiva-execucao-assincrona-com-progresso-real-time-em-mbgb-e-paginacao-em-lotes-na-listview" data-level="3">2026-10-13: Correcao Congelamento Delecao e Progresso Real-Time</a>
     </aside>
   </div>
   <footer class="footer">
