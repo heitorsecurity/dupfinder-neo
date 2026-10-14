@@ -3,9 +3,9 @@ $ErrorActionPreference = 'Stop'
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
-# Version tracking: v1.1 (SemVer 1.1.0)
-$appVersion = "1.1.0"
-$appDisplayVersion = "v1.1"
+# Version tracking: v1.2 (SemVer 1.2.0)
+$appVersion = "1.2.0"
+$appDisplayVersion = "v1.2"
 $appTitle = "DupFinder-Neo $appDisplayVersion (by @heitorsecurity)"
 $appPublisher = "@heitorsecurity"
 
