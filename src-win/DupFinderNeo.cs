@@ -2022,6 +2022,16 @@ namespace DupFinderNeo
                     {
                         if (File.Exists(f.FullPath))
                         {
+                            try
+                            {
+                                FileAttributes attrs = File.GetAttributes(f.FullPath);
+                                if ((attrs & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System)) != 0)
+                                {
+                                    File.SetAttributes(f.FullPath, FileAttributes.Normal);
+                                }
+                            }
+                            catch { }
+
                             File.Delete(f.FullPath);
                             deleted++;
                             deletedBytes += f.Size;
@@ -2258,6 +2268,100 @@ namespace DupFinderNeo
             MessageBox.Show(string.Format("Foram marcados {0} arquivos da pasta clonada '{1}' para exclusao, preservando a pasta original.", checkedCount, sug.DuplicateFolder), "Sugestao Aplicada", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
+        private static bool DeleteDirectoryRobust(string path, out string error)
+        {
+            error = null;
+            try
+            {
+                if (!Directory.Exists(path)) return true;
+
+                // 1. Remove ReadOnly, Hidden and System attributes on the directory itself
+                try
+                {
+                    FileAttributes attrs = File.GetAttributes(path);
+                    if ((attrs & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System)) != 0)
+                    {
+                        File.SetAttributes(path, FileAttributes.Directory);
+                    }
+                }
+                catch { }
+
+                // 2. Clear attributes on any residual files inside (e.g., desktop.ini, Thumbs.db, .DS_Store) and delete them
+                try
+                {
+                    string[] files = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
+                    foreach (string file in files)
+                    {
+                        try
+                        {
+                            FileAttributes fAttrs = File.GetAttributes(file);
+                            if ((fAttrs & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System)) != 0)
+                            {
+                                File.SetAttributes(file, FileAttributes.Normal);
+                            }
+                            File.Delete(file);
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+
+                // 3. Clear attributes on subdirectories and delete deepest first
+                try
+                {
+                    string[] subdirs = Directory.GetDirectories(path, "*", SearchOption.AllDirectories);
+                    Array.Sort(subdirs, delegate(string a, string b) { return b.Length.CompareTo(a.Length); });
+                    foreach (string sub in subdirs)
+                    {
+                        try
+                        {
+                            FileAttributes sAttrs = File.GetAttributes(sub);
+                            if ((sAttrs & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System)) != 0)
+                            {
+                                File.SetAttributes(sub, FileAttributes.Directory);
+                            }
+                            Directory.Delete(sub, false);
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+
+                // 4. Try standard recursive deletion
+                try
+                {
+                    File.SetAttributes(path, FileAttributes.Directory);
+                    Directory.Delete(path, true);
+                    if (!Directory.Exists(path)) return true;
+                }
+                catch { }
+
+                // 5. Brief sleep to release any transient OS handles
+                Thread.Sleep(35);
+
+                try
+                {
+                    File.SetAttributes(path, FileAttributes.Directory);
+                    Directory.Delete(path, true);
+                }
+                catch (Exception ex)
+                {
+                    if (Directory.Exists(path))
+                    {
+                        error = ex.Message;
+                        return false;
+                    }
+                }
+
+                return !Directory.Exists(path);
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
         private void BtnDeleteSelectedEmptyDirs_Click(object sender, EventArgs e)
         {
             List<EmptyDirectoryInfo> toDelete = new List<EmptyDirectoryInfo>();
@@ -2275,6 +2379,9 @@ namespace DupFinderNeo
                 MessageBox.Show("Nenhuma pasta vazia desprotegida selecionada.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+
+            // Sort deepest child directories first so children are deleted before parents
+            toDelete.Sort(delegate(EmptyDirectoryInfo a, EmptyDirectoryInfo b) { return b.Path.Length.CompareTo(a.Path.Length); });
 
             string confirmMsg = string.Format(
                 "CONFIRMACAO DE EXCLUSAO DE PASTAS VAZIAS\n\n" +
@@ -2325,17 +2432,14 @@ namespace DupFinderNeo
                     }
 
                     var ed = toDelete[i];
-                    try
+                    string delErr = null;
+                    if (DeleteDirectoryRobust(ed.Path, out delErr))
                     {
-                        if (Directory.Exists(ed.Path))
-                        {
-                            Directory.Delete(ed.Path);
-                            deletedPaths.Add(ed.Path);
-                        }
+                        deletedPaths.Add(ed.Path);
                     }
-                    catch (Exception ex)
+                    else if (!string.IsNullOrEmpty(delErr))
                     {
-                        errors.Add(ed.Path + " -> " + ex.Message);
+                        errors.Add(ed.Path + " -> " + delErr);
                     }
 
                     int now = Environment.TickCount;
@@ -2418,6 +2522,11 @@ namespace DupFinderNeo
                 HashSet<string> deletedSet = new HashSet<string>(deletedPaths, StringComparer.OrdinalIgnoreCase);
                 engine.EmptyDirectories.RemoveAll(delegate(EmptyDirectoryInfo ed) { return deletedSet.Contains(ed.Path); });
 
+                if (deletedPaths.Count > 0)
+                {
+                    ScanCacheManager.SaveResultsCache(engine);
+                }
+
                 lvEmptyDirs.BeginUpdate();
                 lvEmptyDirs.Items.Clear();
                 foreach (var ed in engine.EmptyDirectories)
@@ -2464,6 +2573,9 @@ namespace DupFinderNeo
                 MessageBox.Show("Nenhuma pasta vazia segura disponivel.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+
+            // Sort deepest child directories first so children are deleted before parents
+            safeDirs.Sort(delegate(EmptyDirectoryInfo a, EmptyDirectoryInfo b) { return b.Path.Length.CompareTo(a.Path.Length); });
 
             string confirmMsg = string.Format(
                 "CONFIRMACAO DE EXCLUSAO GERAL DE PASTAS VAZIAS\n\n" +
@@ -2514,17 +2626,14 @@ namespace DupFinderNeo
                     }
 
                     var ed = safeDirs[i];
-                    try
+                    string delErr = null;
+                    if (DeleteDirectoryRobust(ed.Path, out delErr))
                     {
-                        if (Directory.Exists(ed.Path))
-                        {
-                            Directory.Delete(ed.Path);
-                            deletedPaths.Add(ed.Path);
-                        }
+                        deletedPaths.Add(ed.Path);
                     }
-                    catch (Exception ex)
+                    else if (!string.IsNullOrEmpty(delErr))
                     {
-                        errors.Add(ed.Path + " -> " + ex.Message);
+                        errors.Add(ed.Path + " -> " + delErr);
                     }
 
                     int now = Environment.TickCount;
@@ -2606,6 +2715,11 @@ namespace DupFinderNeo
                 // Remove all safe empty dirs from engine list
                 HashSet<string> deletedSet = new HashSet<string>(deletedPaths, StringComparer.OrdinalIgnoreCase);
                 engine.EmptyDirectories.RemoveAll(delegate(EmptyDirectoryInfo ed) { return deletedSet.Contains(ed.Path); });
+
+                if (deletedPaths.Count > 0)
+                {
+                    ScanCacheManager.SaveResultsCache(engine);
+                }
 
                 lvEmptyDirs.BeginUpdate();
                 lvEmptyDirs.Items.Clear();

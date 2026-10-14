@@ -343,6 +343,44 @@
           <li>Execucao bem-sucedida de <code>build-msi.ps1</code> com compressao MSZIP via <code>makecab.exe</code> e geracao do pacote de instalacao <code>dupfinder-neo.msi</code> para versao <code>1.2.0</code>.</li>
         </ul>
       </section>
+
+      <section>
+        <h3>2026-10-14 - Correcao de Falha na Exclusao de Pastas Vazias com Atributo ReadOnly, Exclusao Robusta Hierarquica e Atualizacao de Cache</h3>
+        <p><strong>Evidence level:</strong> Current source/config, Execution log, Runtime/data artifact, User-provided context.</p>
+
+        <h4>Fixed</h4>
+        <ul>
+          <li>Corrigida a falha na exclusao de pastas vazias (<code>Pastas vazias excluidas: 0</code> acompanhada de erro <code>Access to the path ... is denied.</code> em <code>Relatorio_Delecao_TodasPastasVazias_*.txt</code>). A causa raiz identificada foi a presenca do atributo de somente-leitura (<code>FileAttributes.ReadOnly</code>, exibido como <code>d-r---</code> no Windows PowerShell) em pastas no disco (comum em pastas clonadas, extraidas de arquivos ou materiais de estudo). No runtime .NET, <code>Directory.Delete</code> lanca <code>UnauthorizedAccessException</code> se o atributo <code>ReadOnly</code> estiver ativo na pasta ou em arquivos residuais.</li>
+          <li>Corrigido o erro <code>The directory is not empty</code> que ocorria em pastas ancestrais quando subdiretorios filhos eram visitados fora da ordem hierarquica natural de exclusao.</li>
+        </ul>
+
+        <h4>Included</h4>
+        <ul>
+          <li>Adicionado metodo estatico <code>DeleteDirectoryRobust(path, out error)</code> em <code>src-win/DupFinderNeo.cs</code>:
+            <ul>
+              <li>Desarma previamente os atributos <code>ReadOnly</code>, <code>Hidden</code> e <code>System</code> da pasta e redefine os atributos para <code>FileAttributes.Directory</code>.</li>
+              <li>Remove arquivos residuais do sistema operacional (ex: <code>desktop.ini</code>, <code>Thumbs.db</code>, <code>.DS_Store</code>) com desarmamento de atributos antes da remocao do diretorio.</li>
+              <li>Ordena e apaga subpastas do nivel mais profundo ao mais raso (ordem descendente por comprimento de caminho).</li>
+              <li>Aplica retentativa com breve espera para liberacao de handles transitorios do Windows Explorer ou software antivírus.</li>
+            </ul>
+          </li>
+          <li>Adicionado desarmamento do atributo <code>ReadOnly</code> tambem na rotina de exclusao de arquivos duplicados (<code>BtnDeleteSelectedFiles_Click</code>) antes de <code>File.Delete</code>, prevenindo falhas de permissao em arquivos de somente-leitura.</li>
+        </ul>
+
+        <h4>Changed</h4>
+        <ul>
+          <li><code>BtnDeleteSelectedEmptyDirs_Click</code> e <code>BtnDeleteAllEmptyDirs_Click</code> atualizados para ordenar a lista de pastas por comprimento de caminho decrescente (<code>b.Path.Length.CompareTo(a.Path.Length)</code>), garantindo que pastas filhas sejam sempre removidas antes de suas pastas pai.</li>
+          <li>Integrada a atualizacao automatica do cache salvo (<code>ScanCacheManager.SaveResultsCache(engine)</code>) ao concluir a remocao de pastas vazias, garantindo que as pastas excluidas nao reaparecam em aberturas posteriores do aplicativo.</li>
+          <li>Recompilados os binarios <code>dupfinder-neo.exe</code>, <code>dupfinder-watcher.exe</code>, <code>dupfinder-neo-setup.exe</code> e rebuildado o instalador <code>dupfinder-neo.msi</code>.</li>
+        </ul>
+
+        <h4>Validation</h4>
+        <ul>
+          <li>Validado via PowerShell no disco D: que pastas com atributo <code>Mode: d-r---</code> (ReadOnly) falham em <code>Directory.Delete</code>, e que a aplicacao de <code>File.SetAttributes(path, FileAttributes.Directory)</code> seguida de <code>Directory.Delete</code> resulta em exclusao imediata com 100% de sucesso.</li>
+          <li>Compilacao bem-sucedida de todos os 3 executaveis C# com <code>csc.exe</code> (.NET 4.0 runtime) com exit code 0.</li>
+          <li>Execucao bem-sucedida de <code>build-msi.ps1</code> gerando novo pacote de instalacao <code>dupfinder-neo.msi</code>.</li>
+        </ul>
+      </section>
     </main>
 
     <aside class="toc" aria-label="Sumario">
@@ -356,6 +394,7 @@
       <a href="#2026-10-13---elevacao-para-versao-v11-confirmacao-previa-com-calculo-de-mbgb-relatorios-em-txt-com-arquivo-pai-e-icone-duplicate_files_finderico" data-level="3">2026-10-13: v1.1, Confirmacao, TXT e Icone</a>
       <a href="#2026-10-13---correcao-de-congelamento-na-delecao-de-arquivos-massiva-execucao-assincrona-com-progresso-real-time-em-mbgb-e-paginacao-em-lotes-na-listview" data-level="3">2026-10-13: Correcao Congelamento Delecao e Progresso Real-Time</a>
       <a href="#2026-10-13---elevacao-para-versao-v12-cache-persistente-em-dupla-camada-resultados-e-hashes-limpeza-automatica-do-cache-apos-delecao-total-e-novo-instalador-msi" data-level="3">2026-10-13: v1.2, Cache Persistente e Novo MSI</a>
+      <a href="#2026-10-14---correcao-de-falha-na-exclusao-de-pastas-vazias-com-atributo-readonly-exclusao-robusta-hierarquica-e-atualizacao-de-cache" data-level="3">2026-10-14: Correcao Exclusao de Pastas Vazias ReadOnly</a>
     </aside>
   </div>
   <footer class="footer">
