@@ -367,4 +367,4 @@ $rptFile = Join-Path $scriptDir "setup.rpt"
 if (Test-Path $infFile) { Remove-Item $infFile -Force }
 if (Test-Path $rptFile) { Remove-Item $rptFile -Force }
 
-Write-Host "MSI v1.1 com janelas nativas (Next/Back/Install) gerado com sucesso: $msiFile"
+Write-Host "MSI $appDisplayVersion com janelas nativas (Next/Back/Install) gerado com sucesso: $msiFile"

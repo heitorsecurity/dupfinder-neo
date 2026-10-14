@@ -300,6 +300,49 @@
           <li>Execucao bem-sucedida de <code>build-msi.ps1</code>, gerando o pacote <code>dupfinder-neo.msi</code> atualizado (532.480 bytes) e verificado integridade do instalador.</li>
         </ul>
       </section>
+
+      <section>
+        <h3>2026-10-13 - Elevacao para Versao v1.2: Cache Persistente em Dupla Camada (Resultados e Hashes), Limpeza Automatica do Cache Apos Delecao Total e Novo Instalador MSI</h3>
+        <p><strong>Evidence level:</strong> Current source/config, Execution log, Runtime/data artifact, User-provided context.</p>
+
+        <h4>Included</h4>
+        <ul>
+          <li>Adicionado sistema de persistencia em cache de alta performance <code>ScanCacheManager</code> em <code>src-win/DupFinderNeo.cs</code> operando com serializacao binaria compacta nativa (<code>BinaryWriter</code> e <code>BinaryReader</code>) em <code>%APPDATA%\DupFinder-Neo\Cache\</code>:
+            <ul>
+              <li><strong>Cache de Resultados Completos (<code>last_scan_results.dat</code>, cabecalho <code>DUF2</code>):</strong> armazena a lista de diretorios alvos pesquisados, todos os grupos de duplicatas identificados (hashes, caminhos, tamanhos e carimbos de modificacao), pastas vazias catalogadas e sugestoes de pastas espelhadas em comum. Ao iniciar o programa, o cache e carregado de forma instantanea no <code>ListView</code>, dispensando horas de nova varredura em discos de grande capacidade.</li>
+              <li><strong>Cache de Hashes Incremental (<code>hash_cache.dat</code>, cabecalho <code>DUH1</code>):</strong> armazena o mapeamento <code>caminho + tamanho + data_de_modificacao</code> &rarr; <code>hash_amostral + sha256_completo</code>. Em novas buscas no disco, arquivos inalterados tem seus hashes recuperados sem necessidade de re-leitura fisica de gigabytes do disco.</li>
+            </ul>
+          </li>
+          <li>Implementada remocao e atualizacao automatica de cache apos operacoes de delecao:
+            <ul>
+              <li>Quando o usuario deleta a totalidade dos arquivos duplicados encontrados, o arquivo de cache em disco e automaticamente eliminado (<code>ScanCacheManager.DeleteCache()</code>).</li>
+              <li>Quando o usuario deleta apenas uma parte das duplicatas, o cache e reescrito em disco refletindo fielmente os arquivos remanescentes e expurgando grupos com &lt;= 1 arquivo.</li>
+            </ul>
+          </li>
+          <li>Adicionado botao visual <code>🗑️ Limpar Cache</code> (<code>btnClearCache</code>) na toolbar principal com caixa de confirmacao para descarte manual do cache salvo a qualquer instante.</li>
+          <li>Adicionado auto-carregamento transparente de cache salvo ao inicializar o <code>MainForm</code>: detecta dados salvos e popula a interface instantaneamente sem necessidade de nova varredura.</li>
+        </ul>
+
+        <h4>Changed</h4>
+        <ul>
+          <li>Elevada a versao de toda a aplicacao e instalador de <code>v1.1</code> (1.1.0) para <code>v1.2</code> (1.2.0):
+            <ul>
+              <li><code>src-win/DupFinderNeo.cs</code>: titulos das janelas atualizados para <code>DupFinder-Neo v1.2 (by @heitorsecurity)</code>.</li>
+              <li><code>src-win/DupFinderWatcher.cs</code>: atualizadas strings da bandeja (tray), notificacoes de duplicatas em tempo real e titulos para <code>v1.2</code>.</li>
+              <li><code>src-win/SetupWizard.cs</code>: atualizados titulos, mensagens de boas-vindas, descricoes de componentes, atalhos do sistema e chaves do Registro para <code>v1.2</code> e versao <code>1.2.0</code>.</li>
+              <li><code>build-msi.ps1</code>: atualizado para <code>$appVersion = "1.2.0"</code>, <code>$appDisplayVersion = "v1.2"</code> e gerado novo <code>ProductCode</code> GUID dinamico mantendo <code>UpgradeCode</code> constante para atualizacao transparente.</li>
+            </ul>
+          </li>
+          <li>Recompilados todos os executaveis nativos (<code>dupfinder-neo.exe</code>, <code>dupfinder-watcher.exe</code> e <code>dupfinder-neo-setup.exe</code>) com o compilador <code>csc.exe</code> (.NET 4.0) e embutimento do icone oficial <code>Duplicate_Files_Finder.ico</code>.</li>
+          <li>Rebuildado o instalador de distribuicao <code>dupfinder-neo.msi</code> com novo CAB compactado e tabelas MSI atualizadas para a versao <code>1.2.0</code>.</li>
+        </ul>
+
+        <h4>Validation</h4>
+        <ul>
+          <li>Compilacao concluida com codigo de saida 0 (sucesso) de <code>dupfinder-neo.exe</code>, <code>dupfinder-watcher.exe</code> e <code>dupfinder-neo-setup.exe</code> usando <code>csc.exe</code> com otimizacao ativada e icone oficial.</li>
+          <li>Execucao bem-sucedida de <code>build-msi.ps1</code> com compressao MSZIP via <code>makecab.exe</code> e geracao do pacote de instalacao <code>dupfinder-neo.msi</code> para versao <code>1.2.0</code>.</li>
+        </ul>
+      </section>
     </main>
 
     <aside class="toc" aria-label="Sumario">
@@ -312,6 +355,7 @@
       <a href="#2026-10-12---correcao-de-layout-quebrado-feedback-em-tempo-real-da-varredura-e-integracao-do-icone-dupf-neo.ico" data-level="3">2026-10-12: Layout, Feedback e Icone</a>
       <a href="#2026-10-13---elevacao-para-versao-v11-confirmacao-previa-com-calculo-de-mbgb-relatorios-em-txt-com-arquivo-pai-e-icone-duplicate_files_finderico" data-level="3">2026-10-13: v1.1, Confirmacao, TXT e Icone</a>
       <a href="#2026-10-13---correcao-de-congelamento-na-delecao-de-arquivos-massiva-execucao-assincrona-com-progresso-real-time-em-mbgb-e-paginacao-em-lotes-na-listview" data-level="3">2026-10-13: Correcao Congelamento Delecao e Progresso Real-Time</a>
+      <a href="#2026-10-13---elevacao-para-versao-v12-cache-persistente-em-dupla-camada-resultados-e-hashes-limpeza-automatica-do-cache-apos-delecao-total-e-novo-instalador-msi" data-level="3">2026-10-13: v1.2, Cache Persistente e Novo MSI</a>
     </aside>
   </div>
   <footer class="footer">
