@@ -526,7 +526,7 @@ namespace DupFinderNeo
             ScannedDirsCount = 0;
             lastStatusTick = 0;
 
-            if (OnStatusUpdate != null) OnStatusUpdate("Iniciando varredura com o motor DupFinder-Neo v1.2...");
+            if (OnStatusUpdate != null) OnStatusUpdate("Iniciando varredura com o motor DupFinder-Neo v1.3...");
             if (OnProgressUpdate != null) OnProgressUpdate(0, 0, "Indexando arquivos...");
 
             var hashCache = ScanCacheManager.LoadHashCache();
@@ -1051,7 +1051,7 @@ namespace DupFinderNeo
 
         private void InitializeComponent(string initialFolder)
         {
-            this.Text = "Selecionar Multiplas Pastas - DupFinder-Neo v1.2 (by @heitorsecurity)";
+            this.Text = "Selecionar Multiplas Pastas - DupFinder-Neo v1.3 (by @heitorsecurity)";
             this.Size = new Size(720, 520);
             this.StartPosition = FormStartPosition.CenterParent;
             this.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
@@ -1329,7 +1329,7 @@ namespace DupFinderNeo
 
         private void InitializeComponent()
         {
-            this.Text = "DupFinder-Neo v1.2 (by @heitorsecurity)";
+            this.Text = "DupFinder-Neo v1.3 (by @heitorsecurity)";
             this.Size = new Size(1060, 740);
             this.MinimumSize = new Size(900, 620);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -1342,13 +1342,13 @@ namespace DupFinderNeo
             mainLayout.ColumnCount = 1;
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 220)); // Top options
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Results
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));  // Actions
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // Actions (auto-resizes when wrapped on smaller screens)
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));  // Status bar
             this.Controls.Add(mainLayout);
 
             // GroupBox Configuration
             GroupBox gbConfig = new GroupBox();
-            gbConfig.Text = "Configuracoes da Varredura - DupFinder-Neo v1.2 (by @heitorsecurity)";
+            gbConfig.Text = "Configuracoes da Varredura - DupFinder-Neo v1.3 (by @heitorsecurity)";
             gbConfig.Dock = DockStyle.Fill;
             mainLayout.Controls.Add(gbConfig, 0, 0);
 
@@ -1479,7 +1479,10 @@ namespace DupFinderNeo
             // Action Toolbar
             FlowLayoutPanel pnlActions = new FlowLayoutPanel();
             pnlActions.Dock = DockStyle.Fill;
-            pnlActions.Padding = new Padding(5);
+            pnlActions.AutoSize = true;
+            pnlActions.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            pnlActions.WrapContents = true;
+            pnlActions.Padding = new Padding(5, 3, 5, 3);
 
             btnDeleteSelectedFiles = new Button(); btnDeleteSelectedFiles.Text = "Excluir Duplicatas Marcadas"; btnDeleteSelectedFiles.AutoSize = true; btnDeleteSelectedFiles.BackColor = Color.MistyRose;
             btnOpenFolder = new Button(); btnOpenFolder.Text = "Abrir Pasta no Explorer"; btnOpenFolder.AutoSize = true;
@@ -1531,6 +1534,12 @@ namespace DupFinderNeo
             pnlBottom.Controls.Add(progressBar, 1, 0);
             pnlBottom.Controls.Add(lblElapsedTimer, 2, 0);
             mainLayout.Controls.Add(pnlBottom, 0, 3);
+
+            this.Resize += delegate(object s, EventArgs e)
+            {
+                pnlActions.PerformLayout();
+                mainLayout.PerformLayout();
+            };
 
             // Setup timer
             uiTimer = new System.Windows.Forms.Timer();
@@ -1599,7 +1608,7 @@ namespace DupFinderNeo
                     return;
                 }
 
-                if (MessageBox.Show("Deseja realmente limpar e excluir o arquivo de cache da ultima varredura?", "Confirmar Limpeza de Cache - DupFinder-Neo v1.2", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                if (MessageBox.Show("Deseja realmente limpar e excluir o arquivo de cache da ultima varredura?", "Confirmar Limpeza de Cache - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                 {
                     ScanCacheManager.DeleteCache();
                     engine.DuplicateGroups.Clear();
@@ -1938,7 +1947,7 @@ namespace DupFinderNeo
                 "Deseja realmente continuar e excluir estes {0:N0} arquivos?",
                 toDelete.Count, FormatBytes(totalBytesToFree), totalBytesToFree);
 
-            if (MessageBox.Show(confirmMsg, "Confirmar Exclusao - DupFinder-Neo v1.2", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            if (MessageBox.Show(confirmMsg, "Confirmar Exclusao - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
             {
                 return;
             }
@@ -2086,7 +2095,7 @@ namespace DupFinderNeo
 
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine("================================================================================");
-                sb.AppendLine("DUPFINDER-NEO v1.2 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE DUPLICATAS");
+                sb.AppendLine("DUPFINDER-NEO v1.3 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE DUPLICATAS");
                 sb.AppendLine("================================================================================");
                 sb.AppendLine(string.Format("Data e Hora da Execucao  : {0:yyyy-MM-dd HH:mm:ss}", opTime));
                 sb.AppendLine(string.Format("Status da Operacao       : {0}", wasCancelled ? "INTERROMPIDO PELO USUARIO" : "CONCLUIDO COM SUCESSO"));
@@ -2129,7 +2138,7 @@ namespace DupFinderNeo
                 }
 
                 sb.AppendLine();
-                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.2 (by @heitorsecurity).");
+                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.3 (by @heitorsecurity).");
 
                 try
                 {
@@ -2190,7 +2199,7 @@ namespace DupFinderNeo
                     wasCancelled ? "interrompida pelo usuario" : "concluida com sucesso",
                     deleted, FormatBytes(deletedBytes), reportPath);
 
-                if (MessageBox.Show(finishMsg, "Exclusao Concluida - DupFinder-Neo v1.2", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                if (MessageBox.Show(finishMsg, "Exclusao Concluida - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 {
                     try { Process.Start("notepad.exe", reportPath); } catch { }
                 }
@@ -2283,7 +2292,7 @@ namespace DupFinderNeo
                 "Deseja realmente excluir permanentemente estas {0:N0} pastas vazias?",
                 toDelete.Count);
 
-            if (MessageBox.Show(confirmMsg, "Confirmar Exclusao - DupFinder-Neo v1.2", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            if (MessageBox.Show(confirmMsg, "Confirmar Exclusao - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
                 return;
 
             btnStart.Enabled = false;
@@ -2373,7 +2382,7 @@ namespace DupFinderNeo
 
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine("================================================================================");
-                sb.AppendLine("DUPFINDER-NEO v1.2 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE PASTAS VAZIAS");
+                sb.AppendLine("DUPFINDER-NEO v1.3 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE PASTAS VAZIAS");
                 sb.AppendLine("================================================================================");
                 sb.AppendLine(string.Format("Data e Hora da Execucao  : {0:yyyy-MM-dd HH:mm:ss}", opTime));
                 sb.AppendLine(string.Format("Status da Operacao       : {0}", wasCancelled ? "INTERROMPIDO PELO USUARIO" : "CONCLUIDO COM SUCESSO"));
@@ -2393,7 +2402,7 @@ namespace DupFinderNeo
                     foreach (var err in errors) sb.AppendLine("  ! " + err);
                 }
                 sb.AppendLine();
-                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.2 (by @heitorsecurity).");
+                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.3 (by @heitorsecurity).");
 
                 try { File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8); } catch { }
             };
@@ -2442,7 +2451,7 @@ namespace DupFinderNeo
                     wasCancelled ? "interrompida pelo usuario" : "concluida com sucesso",
                     deletedPaths.Count, reportPath);
 
-                if (MessageBox.Show(finishMsg, "Sucesso - DupFinder-Neo v1.2", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                if (MessageBox.Show(finishMsg, "Sucesso - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 {
                     try { Process.Start("notepad.exe", reportPath); } catch { }
                 }
@@ -2472,7 +2481,7 @@ namespace DupFinderNeo
                 "Deseja realmente excluir TODAS as {0:N0} pastas vazias identificadas?",
                 safeDirs.Count);
 
-            if (MessageBox.Show(confirmMsg, "Confirmar Exclusao Geral - DupFinder-Neo v1.2", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            if (MessageBox.Show(confirmMsg, "Confirmar Exclusao Geral - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
                 return;
 
             btnStart.Enabled = false;
@@ -2562,7 +2571,7 @@ namespace DupFinderNeo
 
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine("================================================================================");
-                sb.AppendLine("DUPFINDER-NEO v1.2 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE PASTAS VAZIAS");
+                sb.AppendLine("DUPFINDER-NEO v1.3 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE PASTAS VAZIAS");
                 sb.AppendLine("================================================================================");
                 sb.AppendLine(string.Format("Data e Hora da Execucao  : {0:yyyy-MM-dd HH:mm:ss}", opTime));
                 sb.AppendLine(string.Format("Status da Operacao       : {0}", wasCancelled ? "INTERROMPIDO PELO USUARIO" : "CONCLUIDO COM SUCESSO"));
@@ -2582,7 +2591,7 @@ namespace DupFinderNeo
                     foreach (var err in errors) sb.AppendLine("  ! " + err);
                 }
                 sb.AppendLine();
-                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.2 (by @heitorsecurity).");
+                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.3 (by @heitorsecurity).");
 
                 try { File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8); } catch { }
             };
@@ -2631,7 +2640,7 @@ namespace DupFinderNeo
                     wasCancelled ? "interrompida pelo usuario" : "concluida com sucesso",
                     deletedPaths.Count, reportPath);
 
-                if (MessageBox.Show(finishMsg, "Sucesso - DupFinder-Neo v1.2", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                if (MessageBox.Show(finishMsg, "Sucesso - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 {
                     try { Process.Start("notepad.exe", reportPath); } catch { }
                 }
