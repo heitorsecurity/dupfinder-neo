@@ -419,6 +419,68 @@
           <li>Execucao bem-sucedida de <code>build-msi.ps1</code> gerando novo pacote de instalacao <code>dupfinder-neo.msi</code> para a versao <code>1.3.0</code> com compressao MSZIP via <code>makecab.exe</code>.</li>
         </ul>
       </section>
+
+      <section id="2026-10-16---elevacao-para-versao-v14-integracao-de-conceitos-do-remove-empty-directories-red-motor-robusto-com-remocao-de-atributos-readonlysystemhidden-purga-de-arquivos-residuais-exclusao-bottom-up-relicenciamento-sob-gnu-gpl-30-e-novo-instalador-msi">
+        <h3>2026-10-16 &mdash; Elevacao para versao v1.4: Integracao de conceitos do Remove-Empty-Directories (RED), motor robusto com remocao de atributos ReadOnly/System/Hidden, purga de arquivos residuais, exclusao bottom-up, relicenciamento sob GNU GPL 3.0 e novo instalador MSI</h3>
+
+        <h4>Included</h4>
+        <ul>
+          <li>Nova classe utilitaria <code>RobustDirectoryCleaner</code> em <code>src-win/DupFinderNeo.cs</code> baseada na analise arquitetural de engenharia reversa do repositorio <a href="https://github.com/hxseven/Remove-Empty-Directories/">Remove-Empty-Directories (RED)</a> de Jonas John &amp; hxseven:
+            <ul>
+              <li>Chamadas Win32 P/Invoke diretas a <code>kernel32.dll</code>: <code>RemoveDirectoryW</code>, <code>DeleteFileW</code>, <code>GetFileAttributesW</code> e <code>SetFileAttributesW</code>.</li>
+              <li>Suporte nativo a caminhos longos (Win32 extended-length paths <code>\\?\</code> e caminhos de rede <code>\\?\UNC\</code>) atraves do metodo <code>NormalizeWin32Path</code>, contornando a restricao <code>MAX_PATH</code> (260 caracteres) do runtime .NET.</li>
+              <li>Funcao <code>IsJunkOrEmptyFile</code> para identificacao de arquivos de lixo gerados automaticamente pelo sistema operacional (<code>desktop.ini</code>, <code>Thumbs.db</code>, <code>ehthumbs.db</code>, <code>.DS_Store</code>, arquivos <code>._*</code> e arquivos de 0 KB).</li>
+              <li>Funcao <code>DeleteJunkFile</code> que remove os atributos <code>ReadOnly</code>, <code>Hidden</code> e <code>System</code> antes de deletar arquivos de lixo, eliminando falhas de acesso negado em arquivos ocultos do Windows.</li>
+              <li>Funcao <code>DeleteDirectory</code> com purga previa de arquivos de lixo/vazios, remocao de atributos impeditivos (<code>ReadOnly</code>, <code>Hidden</code>, <code>System</code>) da propria pasta e loop de retentativa com backoff contra bloqueios transientes causados por indexadores de busca ou pelo Windows Explorer.</li>
+              <li>Protecao estrita de raiz de unidade <code>IsDriveRoot</code> que impede categoricamente qualquer tentativa de exclusao de letras de drive raiz (como <code>C:\</code> ou <code>D:\</code>).</li>
+            </ul>
+          </li>
+          <li>Secao formal de atribuicao e agradecimentos a todos os autores envolvidos:
+            <ul>
+              <li>Patrick De Smet (autor original do DupFinder sob GPL v2).</li>
+              <li>Jonas John &amp; hxseven (autores do Remove-Empty-Directories / RED sob LGPL v3).</li>
+              <li>@heitorsecurity (autor da modernizacao, arquitetura Neo, cache e instaladores).</li>
+            </ul>
+          </li>
+        </ul>
+
+        <h4>Changed</h4>
+        <ul>
+          <li>Relicenciamento formal e unificado do projeto para <strong>GNU General Public License v3.0 (GPL 3.0)</strong>:
+            <ul>
+              <li><code>LICENSE.TXT</code>: substituido integralmente pelo texto oficial da GNU GPL v3.0 com cabecalho formal de atribuicao tripla.</li>
+              <li><code>README.md</code>: atualizado com secao expressa de licenca GPL 3.0, badges e links para os repositorios originais do DupFinder e do Remove-Empty-Directories.</li>
+              <li><code>readme.txt</code>: atualizado para versao v1.4 com sumario de novidades e termos de licenca.</li>
+              <li><code>src-win/SetupWizard.cs</code>: texto do acordo de licenca na tela do assistente atualizado com os termos completos da GPL 3.0 e mencao clara a ambos os projetos e autores.</li>
+              <li><code>build-msi.ps1</code>: telas do assistente interativo do Windows Installer (Boas-Vindas, Contrato de Licenca, Conclusao) atualizadas com a citacao de autores e termos da licenca GPL 3.0.</li>
+            </ul>
+          </li>
+          <li>Elevada a versao de toda a solucao e instaladores de <code>v1.3</code> (1.3.0) para <code>v1.4</code> (1.4.0):
+            <ul>
+              <li><code>src-win/DupFinderNeo.cs</code>: titulos de formularios, caixas de dialogo de confirmacao, status da varredura, cabecalhos e rodapes dos relatorios em TXT de duplicatas e de pastas vazias atualizados para <code>v1.4</code>.</li>
+              <li><code>src-win/DupFinderWatcher.cs</code>: menu de bandeja, notificacoes do sistema (balloon tip) e formularios de monitoramento em tempo real atualizados para <code>v1.4</code>.</li>
+              <li><code>src-win/SetupWizard.cs</code>: assistente de instalacao, atalhos, rotina de desinstalacao e chaves do Registro (<code>DisplayVersion = "1.4.0"</code>) atualizados para <code>v1.4</code>.</li>
+              <li><code>build-msi.ps1</code>: versao atualizada para <code>1.4.0</code> / <code>v1.4</code> com novo <code>ProductCode</code> GUID para atualizacao transparente e sem conflito.</li>
+            </ul>
+          </li>
+          <li>Recompilados todos os 3 executaveis nativos (<code>dupfinder-neo.exe</code>, <code>dupfinder-watcher.exe</code> e <code>dupfinder-neo-setup.exe</code>) com <code>csc.exe</code> (.NET Framework 4.0 runtime) e icone oficial <code>Duplicate_Files_Finder.ico</code>.</li>
+          <li>Rebuildado o instalador <code>dupfinder-neo.msi</code> com novo arquivo CAB compactado via <code>makecab.exe</code>.</li>
+        </ul>
+
+        <h4>Fixed</h4>
+        <ul>
+          <li>Corrigido o erro critico de exclusao de pastas vazias em discos com atributos especiais (como o drive <code>D:</code>), onde o .NET lancava <code>UnauthorizedAccessException: Access to the path ... is denied</code> devido ao atributo <code>FileAttributes.ReadOnly</code> (modo <code>d-r---</code>). O novo motor neutraliza esses atributos antes de solicitar a remocao Win32.</li>
+          <li>Corrigida a falha na exclusao de pastas que continham apenas arquivos residuais do Windows (como <code>desktop.ini</code> oculto/sistema ou <code>Thumbs.db</code>) ou arquivos vazios de 0 bytes, limpando-os automaticamente antes de remover a pasta.</li>
+          <li>Implementada ordenacao estrita <strong>bottom-up</strong> (pastas filhas mais profundas primeiro, ordenadas por comprimento decrescente do caminho <code>b.Path.Length.CompareTo(a.Path.Length)</code>) nas rotinas <code>BtnDeleteSelectedEmptyDirs_Click</code> e <code>BtnDeleteAllEmptyDirs_Click</code>, garantindo que subdiretorios sejam eliminados antes de seus diretorios pais, evitando erros de diretorio nao vazio.</li>
+          <li>Adicionada remocao preventiva de atributos de somente-leitura na exclusao de arquivos duplicados em <code>BtnDeleteSelectedFiles_Click</code>, prevenindo erros de permissao em duplicatas com atributo ReadOnly ativo.</li>
+        </ul>
+
+        <h4>Validation</h4>
+        <ul>
+          <li>Compilacao dos 3 executaveis C# (<code>dupfinder-neo.exe</code>, <code>dupfinder-watcher.exe</code>, <code>dupfinder-neo-setup.exe</code>) executada com sucesso com <code>csc.exe</code> (.NET 4.0 runtime, C# 5) com codigo de saida 0 e zero erros/avisos.</li>
+          <li>Execucao bem-sucedida do script <code>build-msi.ps1</code> gerando o pacote de instalacao <code>dupfinder-neo.msi</code> integro com tabelas do Windows Installer atualizadas e compactacao MSZIP via <code>makecab.exe</code>.</li>
+        </ul>
+      </section>
     </main>
 
     <aside class="toc" aria-label="Sumario">
@@ -434,6 +496,7 @@
       <a href="#2026-10-13---elevacao-para-versao-v12-cache-persistente-em-dupla-camada-resultados-e-hashes-limpeza-automatica-do-cache-apos-delecao-total-e-novo-instalador-msi" data-level="3">2026-10-13: v1.2, Cache Persistente e Novo MSI</a>
       <a href="#2026-10-14---correcao-de-falha-na-exclusao-de-pastas-vazias-com-atributo-readonly-exclusao-robusta-hierarquica-e-atualizacao-de-cache" data-level="3">2026-10-14: Correcao Exclusao de Pastas Vazias ReadOnly</a>
       <a href="#2026-10-14---elevacao-para-versao-v13-barra-de-acoes-responsiva-auto-ajustavel-com-quebra-de-linha-em-janelas-comprimidas-e-novo-instalador-msi" data-level="3">2026-10-14: v1.3, Barra de Acoes Responsiva e Novo MSI</a>
+      <a href="#2026-10-16---elevacao-para-versao-v14-integracao-de-conceitos-do-remove-empty-directories-red-motor-robusto-com-remocao-de-atributos-readonlysystemhidden-purga-de-arquivos-residuais-exclusao-bottom-up-relicenciamento-sob-gnu-gpl-30-e-novo-instalador-msi" data-level="3">2026-10-16: v1.4, Motor RED, Pastas Vazias e GPL 3.0</a>
     </aside>
   </div>
   <footer class="footer">
