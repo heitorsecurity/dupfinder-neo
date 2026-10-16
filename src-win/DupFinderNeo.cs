@@ -9,6 +9,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using System.Runtime.InteropServices;
 
 namespace DupFinderNeo
 {
@@ -382,6 +383,193 @@ namespace DupFinderNeo
     }
 
     /// <summary>
+    /// Robust cleaner for empty directories and OS junk files.
+    /// Incorporates principles from Remove-Empty-Directories (by Jonas John &amp; hxseven)
+    /// to handle ReadOnly/Hidden attributes, desktop.ini/Thumbs.db leftovers, Win32 extended paths,
+    /// and transient file locks.
+    /// </summary>
+    public static class RobustDirectoryCleaner
+    {
+        private const int FILE_ATTRIBUTE_NORMAL = 0x80;
+
+        [DllImport("kernel32.dll", EntryPoint = "RemoveDirectoryW", CharSet = CharSet.Unicode, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool RemoveDirectoryWin32(string lpPathName);
+
+        [DllImport("kernel32.dll", EntryPoint = "DeleteFileW", CharSet = CharSet.Unicode, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DeleteFileWin32(string lpFileName);
+
+        [DllImport("kernel32.dll", EntryPoint = "GetFileAttributesW", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern int GetFileAttributesWin32(string lpFileName);
+
+        [DllImport("kernel32.dll", EntryPoint = "SetFileAttributesW", CharSet = CharSet.Unicode, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetFileAttributesWin32(string lpFileName, int dwFileAttributes);
+
+        public static string NormalizeWin32Path(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return path;
+            path = path.TrimEnd('\\', '/');
+            if (path.StartsWith(@"\\?\")) return path;
+            if (path.StartsWith(@"\\")) return @"\\?\UNC\" + path.Substring(2);
+            return @"\\?\" + path;
+        }
+
+        public static bool IsDriveRoot(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return true;
+            string trimmed = path.TrimEnd('\\', '/');
+            if (trimmed.Length <= 2 && (trimmed.EndsWith(":") || trimmed.Length == 1)) return true;
+            try
+            {
+                string root = Path.GetPathRoot(path);
+                if (!string.IsNullOrEmpty(root) && root.TrimEnd('\\', '/').Equals(trimmed, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>
+        /// Checks whether a file is recognized as non-blocking OS junk (desktop.ini, Thumbs.db, etc.)
+        /// or an empty 0-byte file that should not prevent directory cleanup.
+        /// </summary>
+        public static bool IsJunkOrEmptyFile(string filePath)
+        {
+            try
+            {
+                FileInfo fi = new FileInfo(filePath);
+                if (!fi.Exists) return true;
+                if (fi.Length == 0) return true;
+                string name = fi.Name.ToLowerInvariant();
+                if (name == "desktop.ini" || name == "thumbs.db" || name == "ehthumbs.db" || name == ".ds_store")
+                    return true;
+                if (name.StartsWith("._"))
+                    return true;
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>
+        /// Safely strips read-only, hidden, and system flags, then deletes a junk or empty file.
+        /// </summary>
+        public static bool DeleteJunkFile(string filePath, out string error)
+        {
+            error = null;
+            try
+            {
+                string norm = NormalizeWin32Path(filePath);
+                SetFileAttributesWin32(norm, FILE_ATTRIBUTE_NORMAL);
+                try { File.SetAttributes(filePath, FileAttributes.Normal); } catch { }
+
+                if (DeleteFileWin32(norm)) return true;
+
+                int win32Err = Marshal.GetLastWin32Error();
+                if (win32Err == 2 || win32Err == 3) return true;
+
+                File.Delete(filePath);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Deletes an empty directory. If junk files (desktop.ini, Thumbs.db, 0-byte) exist,
+        /// they are cleaned first. Clears ReadOnly flags before deletion. Supports long paths.
+        /// </summary>
+        public static bool DeleteDirectory(string dirPath, out string error)
+        {
+            error = null;
+            try
+            {
+                if (string.IsNullOrEmpty(dirPath))
+                {
+                    error = "Caminho do diretorio esta vazio.";
+                    return false;
+                }
+
+                if (IsDriveRoot(dirPath))
+                {
+                    error = "Operacao proibida: unidades de disco raiz nao podem ser excluidas (" + dirPath + ").";
+                    return false;
+                }
+
+                if (!Directory.Exists(dirPath))
+                    return true; // Already deleted
+
+                // 1. Purge known junk files if any exist inside this directory
+                try
+                {
+                    string[] files = Directory.GetFiles(dirPath);
+                    foreach (var f in files)
+                    {
+                        if (IsJunkOrEmptyFile(f))
+                        {
+                            string fErr;
+                            DeleteJunkFile(f, out fErr);
+                        }
+                        else
+                        {
+                            error = "Diretorio contem arquivo nao-vazio: " + Path.GetFileName(f);
+                            return false;
+                        }
+                    }
+                }
+                catch { }
+
+                // 2. Strip ReadOnly/System/Hidden attributes from the directory itself
+                string normPath = NormalizeWin32Path(dirPath);
+                SetFileAttributesWin32(normPath, FILE_ATTRIBUTE_NORMAL);
+                try { File.SetAttributes(dirPath, FileAttributes.Normal); } catch { }
+
+                // 3. Retry loop with brief pause for transient locks (Windows Search, Explorer, Antivirus)
+                int attempts = 3;
+                while (attempts > 0)
+                {
+                    attempts--;
+                    if (RemoveDirectoryWin32(normPath))
+                        return true;
+
+                    int win32Err = Marshal.GetLastWin32Error();
+                    if (win32Err == 2 || win32Err == 3)
+                        return true;
+
+                    try
+                    {
+                        Directory.Delete(dirPath, false);
+                        return true;
+                    }
+                    catch (DirectoryNotFoundException)
+                    {
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (attempts == 0)
+                        {
+                            error = string.Format("{0} (Win32Error: {1})", ex.Message, win32Err);
+                            return false;
+                        }
+                    }
+                    Thread.Sleep(50);
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+    }
+
+    /// <summary>
     /// Custom progress bar that draws the percentage and details directly inside the bar.
     /// </summary>
     public class PercentageProgressBar : Control
@@ -526,7 +714,7 @@ namespace DupFinderNeo
             ScannedDirsCount = 0;
             lastStatusTick = 0;
 
-            if (OnStatusUpdate != null) OnStatusUpdate("Iniciando varredura com o motor DupFinder-Neo v1.3...");
+            if (OnStatusUpdate != null) OnStatusUpdate("Iniciando varredura com o motor DupFinder-Neo v1.4...");
             if (OnProgressUpdate != null) OnProgressUpdate(0, 0, "Indexando arquivos...");
 
             var hashCache = ScanCacheManager.LoadHashCache();
@@ -942,9 +1130,19 @@ namespace DupFinderNeo
 
                 string[] dirFiles = null;
                 try { dirFiles = Directory.GetFiles(dir); } catch { }
-                if (dirFiles != null && dirFiles.Length > 0) hasEntries = true;
+                if (dirFiles != null && dirFiles.Length > 0)
+                {
+                    foreach (var f in dirFiles)
+                    {
+                        if (!RobustDirectoryCleaner.IsJunkOrEmptyFile(f))
+                        {
+                            hasEntries = true;
+                            break;
+                        }
+                    }
+                }
 
-                if (!hasEntries)
+                if (!hasEntries && !RobustDirectoryCleaner.IsDriveRoot(dir))
                 {
                     EmptyDirectories.Add(new EmptyDirectoryInfo
                     {
@@ -1051,7 +1249,7 @@ namespace DupFinderNeo
 
         private void InitializeComponent(string initialFolder)
         {
-            this.Text = "Selecionar Multiplas Pastas - DupFinder-Neo v1.3 (by @heitorsecurity)";
+            this.Text = "Selecionar Multiplas Pastas - DupFinder-Neo v1.4 (by @heitorsecurity)";
             this.Size = new Size(720, 520);
             this.StartPosition = FormStartPosition.CenterParent;
             this.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
@@ -1329,7 +1527,7 @@ namespace DupFinderNeo
 
         private void InitializeComponent()
         {
-            this.Text = "DupFinder-Neo v1.3 (by @heitorsecurity)";
+            this.Text = "DupFinder-Neo v1.4 (by @heitorsecurity)";
             this.Size = new Size(1060, 740);
             this.MinimumSize = new Size(900, 620);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -1348,7 +1546,7 @@ namespace DupFinderNeo
 
             // GroupBox Configuration
             GroupBox gbConfig = new GroupBox();
-            gbConfig.Text = "Configuracoes da Varredura - DupFinder-Neo v1.3 (by @heitorsecurity)";
+            gbConfig.Text = "Configuracoes da Varredura - DupFinder-Neo v1.4 (by @heitorsecurity)";
             gbConfig.Dock = DockStyle.Fill;
             mainLayout.Controls.Add(gbConfig, 0, 0);
 
@@ -1608,7 +1806,7 @@ namespace DupFinderNeo
                     return;
                 }
 
-                if (MessageBox.Show("Deseja realmente limpar e excluir o arquivo de cache da ultima varredura?", "Confirmar Limpeza de Cache - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                if (MessageBox.Show("Deseja realmente limpar e excluir o arquivo de cache da ultima varredura?", "Confirmar Limpeza de Cache - DupFinder-Neo v1.4", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                 {
                     ScanCacheManager.DeleteCache();
                     engine.DuplicateGroups.Clear();
@@ -1947,7 +2145,7 @@ namespace DupFinderNeo
                 "Deseja realmente continuar e excluir estes {0:N0} arquivos?",
                 toDelete.Count, FormatBytes(totalBytesToFree), totalBytesToFree);
 
-            if (MessageBox.Show(confirmMsg, "Confirmar Exclusao - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            if (MessageBox.Show(confirmMsg, "Confirmar Exclusao - DupFinder-Neo v1.4", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
             {
                 return;
             }
@@ -2031,6 +2229,7 @@ namespace DupFinderNeo
                     {
                         if (File.Exists(f.FullPath))
                         {
+                            try { File.SetAttributes(f.FullPath, FileAttributes.Normal); } catch { }
                             File.Delete(f.FullPath);
                             deleted++;
                             deletedBytes += f.Size;
@@ -2095,7 +2294,7 @@ namespace DupFinderNeo
 
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine("================================================================================");
-                sb.AppendLine("DUPFINDER-NEO v1.3 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE DUPLICATAS");
+                sb.AppendLine("DUPFINDER-NEO v1.4 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE DUPLICATAS");
                 sb.AppendLine("================================================================================");
                 sb.AppendLine(string.Format("Data e Hora da Execucao  : {0:yyyy-MM-dd HH:mm:ss}", opTime));
                 sb.AppendLine(string.Format("Status da Operacao       : {0}", wasCancelled ? "INTERROMPIDO PELO USUARIO" : "CONCLUIDO COM SUCESSO"));
@@ -2138,7 +2337,7 @@ namespace DupFinderNeo
                 }
 
                 sb.AppendLine();
-                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.3 (by @heitorsecurity).");
+                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.4 (by @heitorsecurity).");
 
                 try
                 {
@@ -2199,7 +2398,7 @@ namespace DupFinderNeo
                     wasCancelled ? "interrompida pelo usuario" : "concluida com sucesso",
                     deleted, FormatBytes(deletedBytes), reportPath);
 
-                if (MessageBox.Show(finishMsg, "Exclusao Concluida - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                if (MessageBox.Show(finishMsg, "Exclusao Concluida - DupFinder-Neo v1.4", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 {
                     try { Process.Start("notepad.exe", reportPath); } catch { }
                 }
@@ -2292,7 +2491,7 @@ namespace DupFinderNeo
                 "Deseja realmente excluir permanentemente estas {0:N0} pastas vazias?",
                 toDelete.Count);
 
-            if (MessageBox.Show(confirmMsg, "Confirmar Exclusao - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            if (MessageBox.Show(confirmMsg, "Confirmar Exclusao - DupFinder-Neo v1.4", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
                 return;
 
             btnStart.Enabled = false;
@@ -2322,6 +2521,12 @@ namespace DupFinderNeo
 
             worker.DoWork += delegate(object s, DoWorkEventArgs ea)
             {
+                // Sort bottom-up (deepest paths first) so child directories are removed before parent directories
+                toDelete.Sort(delegate(EmptyDirectoryInfo a, EmptyDirectoryInfo b)
+                {
+                    return b.Path.Length.CompareTo(a.Path.Length);
+                });
+
                 int totalCount = toDelete.Count;
                 int lastTick = 0;
 
@@ -2334,17 +2539,14 @@ namespace DupFinderNeo
                     }
 
                     var ed = toDelete[i];
-                    try
+                    string delError;
+                    if (RobustDirectoryCleaner.DeleteDirectory(ed.Path, out delError))
                     {
-                        if (Directory.Exists(ed.Path))
-                        {
-                            Directory.Delete(ed.Path);
-                            deletedPaths.Add(ed.Path);
-                        }
+                        deletedPaths.Add(ed.Path);
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        errors.Add(ed.Path + " -> " + ex.Message);
+                        errors.Add(ed.Path + " -> " + delError);
                     }
 
                     int now = Environment.TickCount;
@@ -2382,7 +2584,9 @@ namespace DupFinderNeo
 
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine("================================================================================");
-                sb.AppendLine("DUPFINDER-NEO v1.3 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE PASTAS VAZIAS");
+                sb.AppendLine("DUPFINDER-NEO v1.4 - RELATORIO DE EXCLUSAO DE PASTAS VAZIAS");
+                sb.AppendLine("Engine inspirada no Remove-Empty-Directories (por Jonas John & hxseven) e DupFinder (por Patrick De Smet).");
+                sb.AppendLine("Desenvolvido e mantido por @heitorsecurity sob licenca GNU GPL 3.0.");
                 sb.AppendLine("================================================================================");
                 sb.AppendLine(string.Format("Data e Hora da Execucao  : {0:yyyy-MM-dd HH:mm:ss}", opTime));
                 sb.AppendLine(string.Format("Status da Operacao       : {0}", wasCancelled ? "INTERROMPIDO PELO USUARIO" : "CONCLUIDO COM SUCESSO"));
@@ -2402,7 +2606,7 @@ namespace DupFinderNeo
                     foreach (var err in errors) sb.AppendLine("  ! " + err);
                 }
                 sb.AppendLine();
-                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.3 (by @heitorsecurity).");
+                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.4.");
 
                 try { File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8); } catch { }
             };
@@ -2451,7 +2655,7 @@ namespace DupFinderNeo
                     wasCancelled ? "interrompida pelo usuario" : "concluida com sucesso",
                     deletedPaths.Count, reportPath);
 
-                if (MessageBox.Show(finishMsg, "Sucesso - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                if (MessageBox.Show(finishMsg, "Sucesso - DupFinder-Neo v1.4", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 {
                     try { Process.Start("notepad.exe", reportPath); } catch { }
                 }
@@ -2481,7 +2685,7 @@ namespace DupFinderNeo
                 "Deseja realmente excluir TODAS as {0:N0} pastas vazias identificadas?",
                 safeDirs.Count);
 
-            if (MessageBox.Show(confirmMsg, "Confirmar Exclusao Geral - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            if (MessageBox.Show(confirmMsg, "Confirmar Exclusao Geral - DupFinder-Neo v1.4", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
                 return;
 
             btnStart.Enabled = false;
@@ -2511,6 +2715,12 @@ namespace DupFinderNeo
 
             worker.DoWork += delegate(object s, DoWorkEventArgs ea)
             {
+                // Sort bottom-up (deepest paths first) so child directories are removed before parent directories
+                safeDirs.Sort(delegate(EmptyDirectoryInfo a, EmptyDirectoryInfo b)
+                {
+                    return b.Path.Length.CompareTo(a.Path.Length);
+                });
+
                 int totalCount = safeDirs.Count;
                 int lastTick = 0;
 
@@ -2523,17 +2733,14 @@ namespace DupFinderNeo
                     }
 
                     var ed = safeDirs[i];
-                    try
+                    string delError;
+                    if (RobustDirectoryCleaner.DeleteDirectory(ed.Path, out delError))
                     {
-                        if (Directory.Exists(ed.Path))
-                        {
-                            Directory.Delete(ed.Path);
-                            deletedPaths.Add(ed.Path);
-                        }
+                        deletedPaths.Add(ed.Path);
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        errors.Add(ed.Path + " -> " + ex.Message);
+                        errors.Add(ed.Path + " -> " + delError);
                     }
 
                     int now = Environment.TickCount;
@@ -2571,7 +2778,9 @@ namespace DupFinderNeo
 
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine("================================================================================");
-                sb.AppendLine("DUPFINDER-NEO v1.3 (by @heitorsecurity) - RELATORIO DE EXCLUSAO DE PASTAS VAZIAS");
+                sb.AppendLine("DUPFINDER-NEO v1.4 - RELATORIO DE EXCLUSAO DE PASTAS VAZIAS");
+                sb.AppendLine("Engine inspirada no Remove-Empty-Directories (por Jonas John & hxseven) e DupFinder (por Patrick De Smet).");
+                sb.AppendLine("Desenvolvido e mantido por @heitorsecurity sob licenca GNU GPL 3.0.");
                 sb.AppendLine("================================================================================");
                 sb.AppendLine(string.Format("Data e Hora da Execucao  : {0:yyyy-MM-dd HH:mm:ss}", opTime));
                 sb.AppendLine(string.Format("Status da Operacao       : {0}", wasCancelled ? "INTERROMPIDO PELO USUARIO" : "CONCLUIDO COM SUCESSO"));
@@ -2591,7 +2800,7 @@ namespace DupFinderNeo
                     foreach (var err in errors) sb.AppendLine("  ! " + err);
                 }
                 sb.AppendLine();
-                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.3 (by @heitorsecurity).");
+                sb.AppendLine("Fim do Relatorio. Gerado automaticamente pelo DupFinder-Neo v1.4.");
 
                 try { File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8); } catch { }
             };
@@ -2640,7 +2849,7 @@ namespace DupFinderNeo
                     wasCancelled ? "interrompida pelo usuario" : "concluida com sucesso",
                     deletedPaths.Count, reportPath);
 
-                if (MessageBox.Show(finishMsg, "Sucesso - DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                if (MessageBox.Show(finishMsg, "Sucesso - DupFinder-Neo v1.4", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                 {
                     try { Process.Start("notepad.exe", reportPath); } catch { }
                 }

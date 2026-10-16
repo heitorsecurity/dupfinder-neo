@@ -129,7 +129,7 @@ namespace DupFinderNeo
         private void InitializeTray()
         {
             ContextMenu contextMenu = new ContextMenu();
-            contextMenu.MenuItems.Add("DupFinder-Neo v1.3 (by @heitorsecurity)", (s, e) => OpenDupFinder());
+            contextMenu.MenuItems.Add("DupFinder-Neo v1.4 (by @heitorsecurity)", (s, e) => OpenDupFinder());
             contextMenu.MenuItems[0].DefaultItem = true;
             contextMenu.MenuItems.Add("-");
             contextMenu.MenuItems.Add("Status do Monitor", (s, e) => ShowStatus());
@@ -138,7 +138,7 @@ namespace DupFinderNeo
             contextMenu.MenuItems.Add("Encerrar Monitor", (s, e) => ExitWatcher());
 
             notifyIcon = new NotifyIcon();
-            notifyIcon.Text = "DupFinder-Neo v1.3 - Monitor Ativo (by @heitorsecurity)";
+            notifyIcon.Text = "DupFinder-Neo v1.4 - Monitor Ativo (by @heitorsecurity)";
             try
             {
                 notifyIcon.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
@@ -405,7 +405,7 @@ namespace DupFinderNeo
             {
                 notifyIcon.ShowBalloonTip(
                     9000,
-                    "DupFinder-Neo v1.3: Arquivo Duplicado!",
+                    "DupFinder-Neo v1.4: Arquivo Duplicado!",
                     string.Format("Voce duplicou um arquivo existente ({0}):\r\n'{1}'\r\nClique aqui para ver opcoes.", sizeStr, fileName),
                     ToolTipIcon.Warning
                 );
@@ -474,7 +474,7 @@ namespace DupFinderNeo
             }
 
             MessageBox.Show(
-                string.Format("DupFinder-Neo v1.3 - Monitor de Arquivos (by @heitorsecurity)\r\n\r\n" +
+                string.Format("DupFinder-Neo v1.4 - Monitor de Arquivos (by @heitorsecurity)\r\n\r\n" +
                               "Status: Ativo e monitorando em tempo real\r\n" +
                               "Arquivos indexados no cache: {0:N0}\r\n" +
                               "Diretorios monitorados: {1}\r\n\r\n" +
@@ -524,7 +524,7 @@ namespace DupFinderNeo
 
         private void InitializeComponent()
         {
-            this.Text = "DupFinder-Neo v1.3 - Alerta de Arquivo Duplicado (by @heitorsecurity)";
+            this.Text = "DupFinder-Neo v1.4 - Alerta de Arquivo Duplicado (by @heitorsecurity)";
             this.Size = new Size(680, 460);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
