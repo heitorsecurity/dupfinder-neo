@@ -1,8 +1,8 @@
-# DupFinder-Neo v1.0 (by @heitorsecurity) 🚀
+# DupFinder-Neo v1.4 (by @heitorsecurity) 🚀
 
-> **Localizador Inteligente de Duplicatas, Detector de Pastas em Comum, Monitor em Tempo Real e Limpador de Diretórios Vazios**  
+> **Localizador Inteligente de Duplicatas, Detector de Pastas em Comum, Monitor em Tempo Real e Limpador Robusto de Diretórios Vazios**  
 > Compatível com **Windows XP, Vista, 7, 8, 8.1, 10 e 11**.  
-> **Versão Oficial:** `v1.0` *(Política de versionamento contínuo: v1.0 -> v1.1 -> v1.2 ...)*
+> **Versão Oficial:** `v1.4` *(Licenciado sob GNU GPL v3.0)*
 
 ---
 
@@ -160,9 +160,11 @@ dupfinder-neo/
 
 ---
 
-## 📄 Política de Versionamento e Créditos
+## 📄 Política de Versionamento, Autoria e Licença
 
-- **Versão Atual**: `v1.0` (1.0.0).  
-- **Convenção de Versões Futuras**: Atualizações incrementais seguirão o padrão `v1.0 -> v1.1 -> v1.2 -> v2.0`.
-- **Autoria Original**: Patrick De Smet (GNU General Public License v2).
-- **DupFinder-Neo v1.0**: Modernização de motor, temporizadores, barra de porcentagem interna, seleção de múltiplas pastas, monitor em segundo plano estilo Everything com notificações no Windows, instalador e desinstalador limpo por **@heitorsecurity**.
+- **Versão Atual**: `v1.4` (1.4.0).  
+- **Convenção de Versionamento**: `v1.0 -> v1.1 -> v1.2 -> v1.3 -> v1.4`.
+- **Autoria Original do DupFinder**: Patrick De Smet (2004–2006, GNU GPL v2 ou posterior).
+- **Motor e Conceitos de Diretórios Vazios**: Jonas John & hxseven ([Remove-Empty-Directories - RED](https://github.com/hxseven/Remove-Empty-Directories/), 2005–2026, GNU LGPL v3 / GNU GPL v3 compatível), integrando filtragem de arquivos de lixo do SO (`desktop.ini`, `Thumbs.db`, `.DS_Store`, 0-byte files), desarmamento de atributos (`ReadOnly`, `Hidden`, `System`), ordenação estrita bottom-up e retentativas contra locks.
+- **DupFinder-Neo (v1.0 a v1.4)**: Arquitetura unificada, pré-hashing amostral FNV-1a 64-bit, limpador Win32 robusto com suporte a caminhos longos (`\\?\`), cache persistente em dupla camada (resultados e hashes), monitor em segundo plano estilo Everything com alertas em tempo real, interface auto-ajustável responsiva, relatórios detalhados com rastreamento de arquivo-pai e assistentes completos por **@heitorsecurity**.
+- **Licença do Projeto**: Todo o projeto e seus executáveis são licenciados sob a **GNU General Public License v3.0 (GNU GPL v3.0)** (consulte [`LICENSE.TXT`](file:///c:/Users/hteix/code/empresasto/dupfinder-neo/LICENSE.TXT)).

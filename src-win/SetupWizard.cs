@@ -154,7 +154,7 @@ namespace DupFinderNeoSetup
 
         private void InitializeComponent()
         {
-            this.Text = "DupFinder-Neo v1.3 - Assistente de Instalacao (by @heitorsecurity)";
+            this.Text = "DupFinder-Neo v1.4 - Assistente de Instalacao (by @heitorsecurity)";
             this.Size = new Size(650, 480);
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -173,7 +173,7 @@ namespace DupFinderNeoSetup
 
             lblHeaderTitle = new Label()
             {
-                Text = "DupFinder-Neo v1.3 (by @heitorsecurity)",
+                Text = "DupFinder-Neo v1.4 (by @heitorsecurity)",
                 Font = new Font("Segoe UI", 11.5F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(24, 43, 73),
                 Location = new Point(22, 13),
@@ -227,7 +227,7 @@ namespace DupFinderNeoSetup
 
             Label lblTitle = new Label()
             {
-                Text = "Bem-vindo a Instalacao do DupFinder-Neo v1.3",
+                Text = "Bem-vindo a Instalacao do DupFinder-Neo v1.4",
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(30, 50, 90),
                 Location = new Point(0, 5),
@@ -236,12 +236,13 @@ namespace DupFinderNeoSetup
 
             Label lblDesc = new Label()
             {
-                Text = "O DupFinder-Neo v1.3 e um localizador ultra-rapido de arquivos duplicados, detector de pastas espelhadas em comum e limpador seguro de pastas vazias, compativel com Windows XP, Vista, 7, 8, 10 e 11.\r\n\r\n" +
-                       "• Desenvolvido originalmente por Patrick De Smet.\r\n" +
-                       "• Totalmente modernizado e expandido por @heitorsecurity com pre-hashing amostral FNV-1a 64-bit, salvaguarda do SO, historico detalhado de delecoes e monitor em tempo real.\r\n\r\n" +
+                Text = "O DupFinder-Neo v1.4 e um localizador ultra-rapido de arquivos duplicados, detector de pastas espelhadas em comum e limpador robusto de pastas vazias, compativel com Windows XP, Vista, 7, 8, 10 e 11.\r\n\r\n" +
+                       "• Autoria Original (DupFinder): Patrick De Smet (GNU GPL v2).\r\n" +
+                       "• Motor de Pastas Vazias (RED): Jonas John & hxseven (Remove Empty Directories - LGPL v3).\r\n" +
+                       "• Modernizacao, Integracao e Arquitetura: @heitorsecurity sob a licenca GNU GPL v3.0, com pre-hashing amostral FNV-1a 64-bit, limpador Win32 com neutralizacao de atributos, historico detalhado de delecoes e monitor em tempo real.\r\n\r\n" +
                        "Clique em 'Avancar' para continuar com o assistente.",
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Regular),
-                Location = new Point(2, 45),
+                Font = new Font("Segoe UI", 9.2F, FontStyle.Regular),
+                Location = new Point(2, 38),
                 Size = new Size(580, 160)
             };
 
@@ -293,12 +294,12 @@ namespace DupFinderNeoSetup
             }
             if (string.IsNullOrEmpty(rtbLicense.Text))
             {
-                rtbLicense.Text = "DupFinder-Neo v1.3 (by @heitorsecurity)\r\nOriginal Work: Copyright (C) Patrick De Smet (GNU GPL v2)\r\nModernization: Copyright (C) 2026 @heitorsecurity\r\nLicensed under GNU General Public License v2.";
+                rtbLicense.Text = "DupFinder-Neo v1.4 (by @heitorsecurity)\r\nOriginal Work (DupFinder): Copyright (C) Patrick De Smet (GNU GPL v2 or later)\r\nEmpty Directories Engine (RED): Copyright (C) Jonas John & hxseven (GNU LGPL v3 / GPL v3 compatible)\r\nModernization & Architecture: Copyright (C) 2026 @heitorsecurity\r\nLicensed under GNU General Public License v3.0 (GPL-3.0).";
             }
 
             rbAcceptLicense = new RadioButton()
             {
-                Text = "Eu aceito os termos do Contrato de Licenca e modificacoes de @heitorsecurity",
+                Text = "Eu aceito os termos do Contrato de Licenca GNU GPL v3.0 e modificacoes de @heitorsecurity",
                 Location = new Point(2, 215),
                 AutoSize = true
             };
@@ -463,7 +464,7 @@ namespace DupFinderNeoSetup
 
             Label lblProgTitle = new Label()
             {
-                Text = "Instalando o DupFinder-Neo v1.3...",
+                Text = "Instalando o DupFinder-Neo v1.4...",
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 Location = new Point(0, 30),
                 AutoSize = true
@@ -503,7 +504,7 @@ namespace DupFinderNeoSetup
 
             Label lblFinDesc = new Label()
             {
-                Text = "O DupFinder-Neo v1.3 (by @heitorsecurity) foi instalado com sucesso no seu computador.\r\n\r\n" +
+                Text = "O DupFinder-Neo v1.4 (by @heitorsecurity) foi instalado com sucesso no seu computador.\r\n\r\n" +
                        "Foram gerados atalhos para o programa, documentacao e desinstalador limpo no seu Menu Iniciar.\r\n" +
                        "Clique em 'Concluir' para fechar o assistente.",
                 Location = new Point(2, 55),
@@ -512,7 +513,7 @@ namespace DupFinderNeoSetup
 
             cbLaunchAfter = new CheckBox()
             {
-                Text = "Executar o DupFinder-Neo v1.3 agora",
+                Text = "Executar o DupFinder-Neo v1.4 agora",
                 Checked = true,
                 Location = new Point(5, 150),
                 AutoSize = true,
@@ -539,7 +540,7 @@ namespace DupFinderNeoSetup
 
             if (step == 0)
             {
-                lblHeaderSubtitle.Text = "Bem-vindo a Instalacao do DupFinder-Neo v1.3";
+                lblHeaderSubtitle.Text = "Bem-vindo a Instalacao do DupFinder-Neo v1.4";
                 btnNext.Text = "Avancar >";
                 btnNext.Enabled = true;
             }
@@ -636,7 +637,7 @@ namespace DupFinderNeoSetup
                     }
                 }
 
-                UpdateProgress(30, "Copiando executaveis do DupFinder-Neo v1.3...");
+                UpdateProgress(30, "Copiando executaveis do DupFinder-Neo v1.4...");
                 CopyFileSafe(sourceDir, targetDir, "dupfinder-neo.exe");
                 CopyFileSafe(sourceDir, targetDir, "dupfinder-watcher.exe");
 
@@ -661,7 +662,7 @@ namespace DupFinderNeoSetup
                         : Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
 
                     string deskLink = Path.Combine(desktopFolder, "DupFinder-Neo.lnk");
-                    CreateShortcut(deskLink, exeTarget, "", "DupFinder-Neo v1.3 (by @heitorsecurity)", targetDir, exeTarget);
+                    CreateShortcut(deskLink, exeTarget, "", "DupFinder-Neo v1.4 (by @heitorsecurity)", targetDir, exeTarget);
                 }
 
                 // Start Menu folder
@@ -674,9 +675,9 @@ namespace DupFinderNeoSetup
                     string startGroup = Path.Combine(startPrograms, "DupFinder-Neo");
                     try { if (!Directory.Exists(startGroup)) Directory.CreateDirectory(startGroup); } catch { }
 
-                    CreateShortcut(Path.Combine(startGroup, "DupFinder-Neo.lnk"), exeTarget, "", "DupFinder-Neo v1.3 (by @heitorsecurity)", targetDir, exeTarget);
+                    CreateShortcut(Path.Combine(startGroup, "DupFinder-Neo.lnk"), exeTarget, "", "DupFinder-Neo v1.4 (by @heitorsecurity)", targetDir, exeTarget);
                     CreateShortcut(Path.Combine(startGroup, "Readme.txt.lnk"), readmeTarget, "", "Informacoes e Ajuda do DupFinder-Neo", targetDir, "");
-                    CreateShortcut(Path.Combine(startGroup, "Desinstalar DupFinder-Neo.lnk"), targetSetup, "/uninstall", "Desinstalar DupFinder-Neo v1.3", targetDir, targetSetup);
+                    CreateShortcut(Path.Combine(startGroup, "Desinstalar DupFinder-Neo.lnk"), targetSetup, "/uninstall", "Desinstalar DupFinder-Neo v1.4", targetDir, targetSetup);
                 }
 
                 // Background Watcher
@@ -760,8 +761,8 @@ namespace DupFinderNeoSetup
                 {
                     if (key != null)
                     {
-                        key.SetValue("DisplayName", "DupFinder-Neo v1.3 (by @heitorsecurity)");
-                        key.SetValue("DisplayVersion", "1.3.0");
+                        key.SetValue("DisplayName", "DupFinder-Neo v1.4 (by @heitorsecurity)");
+                        key.SetValue("DisplayVersion", "1.4.0");
                         key.SetValue("Publisher", "@heitorsecurity");
                         key.SetValue("InstallLocation", installDir);
                         key.SetValue("UninstallString", "\"" + setupPath + "\" /uninstall");
@@ -802,8 +803,8 @@ namespace DupFinderNeoSetup
     {
         public static void Run()
         {
-            if (MessageBox.Show("Deseja realmente desinstalar o DupFinder-Neo v1.3 (by @heitorsecurity) e todos os seus componentes do computador?",
-                "Desinstalar DupFinder-Neo v1.3", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            if (MessageBox.Show("Deseja realmente desinstalar o DupFinder-Neo v1.4 (by @heitorsecurity) e todos os seus componentes do computador?",
+                "Desinstalar DupFinder-Neo v1.4", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             {
                 return;
             }
@@ -893,7 +894,7 @@ namespace DupFinderNeoSetup
                     catch { }
                 }
 
-                MessageBox.Show("O DupFinder-Neo v1.3 foi completamente desinstalado do seu computador sem deixar arquivos residuais.",
+                MessageBox.Show("O DupFinder-Neo v1.4 foi completamente desinstalado do seu computador sem deixar arquivos residuais.",
                     "Desinstalacao Concluida", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 // Self delete batch
