@@ -481,6 +481,34 @@
           <li>Execucao bem-sucedida do script <code>build-msi.ps1</code> gerando o pacote de instalacao <code>dupfinder-neo.msi</code> integro com tabelas do Windows Installer atualizadas e compactacao MSZIP via <code>makecab.exe</code>.</li>
         </ul>
       </section>
+
+      <section id="2026-10-16---implementacao-de-manifesto-de-elevacao-obrigatoria-de-administrador-uac-requireadministrator-e-rotina-programatica-de-verificacao-com-confirmacao-sim-nao">
+        <h3>2026-10-16 &mdash; Implementacao de manifesto de elevacao obrigatoria de Administrador (UAC requireAdministrator) e rotina programatica de verificacao com confirmacao Sim/Nao</h3>
+
+        <h4>Included</h4>
+        <ul>
+          <li>Criado arquivo de manifesto nativo do Windows <code>app.manifest</code> configurado com <code>&lt;requestedExecutionLevel level="requireAdministrator" uiAccess="false" /&gt;</code> e diretivas de compatibilidade para Windows 10/11, 8.1, 8 e 7.</li>
+          <li>Implementada verificacao programatica de privilegio e solicitacao de elevacao (<code>IsAdministrator</code> e <code>RequestElevation</code> via <code>ProcessStartInfo.Verb = "runas"</code>) nos pontos de entrada <code>Main</code> de <code>src-win/DupFinderNeo.cs</code> e <code>src-win/SetupWizard.cs</code>, exibindo aviso claro caso o usuario recuse a solicitacao.</li>
+        </ul>
+
+        <h4>Changed</h4>
+        <ul>
+          <li>Executaveis <code>dupfinder-neo.exe</code> e <code>dupfinder-neo-setup.exe</code> recompilados com a flag <code>/win32manifest:app.manifest</code> no compilador <code>csc.exe</code> (.NET 4.0 runtime), embutindo o manifesto de solicitacao UAC diretamente na tabela de recursos PE dos binarios.</li>
+          <li>Rebuildado o pacote de instalacao <code>dupfinder-neo.msi</code> via <code>build-msi.ps1</code> contendo os binarios com manifesto embutido e compactacao MSZIP.</li>
+        </ul>
+
+        <h4>Fixed</h4>
+        <ul>
+          <li>Corrigida a ausencia da solicitacao de confirmacao de privilégios de Administrador (janela UAC do Windows com botoes Sim/Nao) ao iniciar o <code>dupfinder-neo.exe</code> ou o <code>dupfinder-neo-setup.exe</code>, garantindo que o programa execute com privilégios administrativos plenos para manipular arquivos do sistema e pastas com restricoes de ACL no disco <code>D:</code>.</li>
+        </ul>
+
+        <h4>Validation</h4>
+        <ul>
+          <li>Inspecao de bytes dos binarios compilados comprovando presenca da flag <code>requireAdministrator</code> em <code>dupfinder-neo.exe</code> e <code>dupfinder-neo-setup.exe</code>.</li>
+          <li>Compilacao dos 3 binarios com <code>csc.exe</code> finalizada com codigo de saida 0.</li>
+          <li>Execucao bem-sucedida de <code>build-msi.ps1</code> gerando <code>dupfinder-neo.msi</code> com tamanho de 544.768 bytes.</li>
+        </ul>
+      </section>
     </main>
 
     <aside class="toc" aria-label="Sumario">
@@ -497,6 +525,7 @@
       <a href="#2026-10-14---correcao-de-falha-na-exclusao-de-pastas-vazias-com-atributo-readonly-exclusao-robusta-hierarquica-e-atualizacao-de-cache" data-level="3">2026-10-14: Correcao Exclusao de Pastas Vazias ReadOnly</a>
       <a href="#2026-10-14---elevacao-para-versao-v13-barra-de-acoes-responsiva-auto-ajustavel-com-quebra-de-linha-em-janelas-comprimidas-e-novo-instalador-msi" data-level="3">2026-10-14: v1.3, Barra de Acoes Responsiva e Novo MSI</a>
       <a href="#2026-10-16---elevacao-para-versao-v14-integracao-de-conceitos-do-remove-empty-directories-red-motor-robusto-com-remocao-de-atributos-readonlysystemhidden-purga-de-arquivos-residuais-exclusao-bottom-up-relicenciamento-sob-gnu-gpl-30-e-novo-instalador-msi" data-level="3">2026-10-16: v1.4, Motor RED, Pastas Vazias e GPL 3.0</a>
+      <a href="#2026-10-16---implementacao-de-manifesto-de-elevacao-obrigatoria-de-administrador-uac-requireadministrator-e-rotina-programatica-de-verificacao-com-confirmacao-sim-nao" data-level="3">2026-10-16: Elevacao UAC de Administrador</a>
     </aside>
   </div>
   <footer class="footer">
