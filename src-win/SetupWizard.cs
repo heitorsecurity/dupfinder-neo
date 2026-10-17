@@ -915,11 +915,63 @@ namespace DupFinderNeoSetup
 
     public static class Program
     {
+        private static bool IsAdministrator()
+        {
+            try
+            {
+                using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+                {
+                    var principal = new System.Security.Principal.WindowsPrincipal(identity);
+                    return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+                }
+            }
+            catch { return false; }
+        }
+
+        private static bool RequestElevation(string[] args)
+        {
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo();
+                psi.FileName = Application.ExecutablePath;
+                psi.UseShellExecute = true;
+                psi.Verb = "runas"; // Dispara a confirmacao de Administrador UAC do Windows (Sim / Nao)
+                if (args != null && args.Length > 0)
+                {
+                    string[] quoted = new string[args.Length];
+                    for (int i = 0; i < args.Length; i++)
+                    {
+                        quoted[i] = "\"" + args[i].Replace("\"", "\\\"") + "\"";
+                    }
+                    psi.Arguments = string.Join(" ", quoted);
+                }
+                Process.Start(psi);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         [STAThread]
         public static void Main(string[] args)
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            if (!IsAdministrator())
+            {
+                if (!RequestElevation(args))
+                {
+                    MessageBox.Show(
+                        "O Assistente de Instalacao do DupFinder-Neo requer privilegios de Administrador para instalar arquivos em Arquivos de Programas e criar atalhos.\n\nPor favor, confirme clicando em 'SIM' na solicitacao do Windows para prosseguir com a instalacao.",
+                        "Permissao de Administrador Necessaria - Instalador DupFinder-Neo v1.4",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+                return;
+            }
 
             if (args != null && args.Length > 0)
             {

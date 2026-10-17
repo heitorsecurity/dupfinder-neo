@@ -2871,11 +2871,64 @@ namespace DupFinderNeo
             return string.Format("{0:0.##} {1}", val, units[u]);
         }
 
+        private static bool IsAdministrator()
+        {
+            try
+            {
+                using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+                {
+                    var principal = new System.Security.Principal.WindowsPrincipal(identity);
+                    return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+                }
+            }
+            catch { return false; }
+        }
+
+        private static bool RequestElevation(string[] args)
+        {
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo();
+                psi.FileName = Application.ExecutablePath;
+                psi.UseShellExecute = true;
+                psi.Verb = "runas"; // Dispara a janela de confirmacao UAC do Windows (Sim / Nao)
+                if (args != null && args.Length > 0)
+                {
+                    string[] quoted = new string[args.Length];
+                    for (int i = 0; i < args.Length; i++)
+                    {
+                        quoted[i] = "\"" + args[i].Replace("\"", "\\\"") + "\"";
+                    }
+                    psi.Arguments = string.Join(" ", quoted);
+                }
+                Process.Start(psi);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         [STAThread]
-        public static void Main()
+        public static void Main(string[] args)
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            if (!IsAdministrator())
+            {
+                if (!RequestElevation(args))
+                {
+                    MessageBox.Show(
+                        "O DupFinder-Neo requer privilegios de Administrador para acessar, analisar e limpar pastas protegidas ou discos do sistema.\n\nPor favor, confirme clicando em 'SIM' na solicitacao do Windows para executar o aplicativo.",
+                        "Privilegios de Administrador Necessarios - DupFinder-Neo v1.4",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+                return;
+            }
+
             Application.Run(new MainForm());
         }
     }
